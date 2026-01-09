@@ -1,0 +1,225 @@
+version: 1
+
+defaults:
+  file_extension: ".nzf"
+  delimiter: "Ç"
+  encoding: "latin-1"
+  header: true
+  trim_headers: true
+  trim_values: true
+  allow_additional_columns: true
+
+tables:
+
+  pvr00100:
+    file_patterns: ["*PVR00100*.nzf"]
+    description: "Run metadata and scenario selections for a PRIMA valuation run"
+    primary_key: ["DmrRunID"]
+    business_context:
+      domain: "MBS valuation / PRIMA run control"
+      grain: "1 row per valuation run (DmrRunID)"
+      identifiers: ["DmrRunID", "PortfolioID"]
+      key_dates: ["PortfolioDate", "ValuationDate", "SpreadDate", "InterestRateDate"]
+      scenarios:
+        - "InterestRateScenario"
+        - "VolatilityScenario"
+        - "PrepaymentScenario"
+        - "SpreadScenario"
+        - "HpaScenario"
+      typical_questions:
+        - "Which scenarios/dates were used for the run?"
+        - "What portfolio date / valuation date is this run?"
+    columns:
+      DmrRunID: {type: string}
+      PortfolioID: {type: string}
+      PortfolioDate: {type: date}
+      ValuationDate: {type: date}
+      InterestRateDate: {type: date}
+      InterestRateScenario: {type: string}
+      VolatilityDate: {type: date}
+      VolatilityScenario: {type: string}
+      PrepaymentScenario: {type: string}
+      SpreadScenario: {type: string}
+
+  pvr01000:
+    file_patterns: ["*PVR01000*.nzf"]
+    description: "Portfolio-to-run mapping"
+    primary_key: ["PortfolioID", "DmrRunID"]
+    business_context:
+      domain: "Run scoping"
+      grain: "1 row per portfolio included in a run"
+      identifiers: ["PortfolioID", "DmrRunID"]
+      typical_questions:
+        - "Which portfolios are included in a given run?"
+    columns:
+      PortfolioID: {type: string}
+      DmrRunID: {type: string}
+
+  pvr00400:
+    file_patterns: ["*PVR00400*.nzf"]
+    description: "Instrument master / security attributes (very wide)"
+    primary_key: ["InstrumentID", "PortfolioID"]
+    allow_additional_columns: true
+    business_context:
+      domain: "Security master"
+      grain: "1 row per instrument per portfolio"
+      identifiers: ["InstrumentID", "PortfolioID", "CUSIP"]
+      dimensions:
+        - "InstrumentTypeCode"
+        - "ProductTypeCode"
+        - "DealName"
+        - "IssuerName"
+        - "PropertyStateCode"
+      typical_questions:
+        - "What are the security attributes for an instrument?"
+        - "Group instruments by type/deal/state"
+    columns:
+      InstrumentID: {type: string}
+      PortfolioID: {type: string}
+      CUSIP: {type: string}
+      DealName: {type: string}
+      IssueDate: {type: date}
+      MaturityDate: {type: date}
+      CurrentUPBAmt: {type: float}
+      OriginalAmount: {type: float}
+
+  pvr00600:
+    file_patterns: ["*PVR00600*.nzf"]
+    description: "Core analytics metrics (OAS, duration, WAL, CPR, loss) for instrument/portfolio/run"
+    primary_key: ["DmrRunID", "PortfolioID", "InstrumentID", "RunID"]
+    business_context:
+      domain: "Risk/valuation analytics"
+      grain: "1 row per instrument per portfolio per run snapshot"
+      identifiers: ["InstrumentID", "PortfolioID", "DmrRunID", "RunID"]
+      measures:
+        - "Oas"
+        - "Price"
+        - "Duration"
+        - "Convexity"
+        - "WeightedAvgLife"
+        - "CPR1Month"
+        - "CPR1Year"
+        - "CumLossLifeTime"
+      typical_questions:
+        - "Top WAL / duration / OAS by portfolio"
+        - "Compare price or OAS across scenarios/runs"
+    columns:
+      DmrRunID: {type: string}
+      PortfolioID: {type: string}
+      InstrumentID: {type: string}
+      RunID: {type: string}
+      Oas: {type: float}
+      Price: {type: float}
+      Duration: {type: float}
+      WeightedAvgLife: {type: float}
+      CPR1Year: {type: float}
+
+  pvr01100:
+    file_patterns: ["*PVR01100*.nzf"]
+    description: "Instrument characteristics / loan rollups (very wide)"
+    primary_key: ["DMRRunID", "InstrumentID", "PortfolioID"]
+    allow_additional_columns: true
+    business_context:
+      domain: "Loan/security characteristics"
+      grain: "1 row per instrument per portfolio per run"
+      identifiers: ["DMRRunID", "InstrumentID", "PortfolioID"]
+      measures: ["UnpaidBalance", "Ltv", "OriginalWacRate", "WamMth"]
+      typical_questions:
+        - "Explain why an instrument has high WAL/duration"
+        - "Filter by LTV/FICO/term"
+    columns:
+      DMRRunID: {type: string}
+      InstrumentID: {type: string}
+      PortfolioID: {type: string}
+      UnpaidBalance: {type: float}
+      Ltv: {type: float}
+      OriginalWacRate: {type: float}
+      WamMth: {type: int}
+
+  krd00100:
+    file_patterns: ["*KRD00100*.nzf"]
+    description: "Key Rate Duration results by scenario segment"
+    primary_key: ["ValuationLoadId", "InstrumentID", "ScenarioType", "SegmentId"]
+    business_context:
+      domain: "Interest rate risk (KRD)"
+      grain: "many rows per instrument per valuation load across curve buckets"
+      identifiers: ["ValuationLoadId", "InstrumentID", "ScenarioType", "SegmentId"]
+      measures: ["AnalyticValue"]
+      typical_questions:
+        - "KRD by tenor bucket"
+        - "Aggregate KRD by portfolio type / segment"
+    columns:
+      ValuationLoadId: {type: string}
+      InstrumentID: {type: string}
+      ScenarioType: {type: string}
+      SegmentId: {type: string}
+      SegmentName: {type: string}
+      AnalyticValue: {type: float}
+
+  pnl00300:
+    file_patterns: ["*PNL00300*.nzf"]
+    description: "P&L returns attribution for day1 vs day0"
+    primary_key: ["Day1ValuationLoadID", "Day1InstrumentID"]
+    business_context:
+      domain: "Performance / P&L attribution"
+      grain: "1 row per instrument per valuation load (day1)"
+      identifiers: ["Day1ValuationLoadID", "Day1InstrumentID", "Day0ValuationLoadID", "Day0InstrumentID"]
+      measures:
+        - "TotalReturn"
+        - "PriceReturn"
+        - "CouponReturn"
+        - "AccrualReturn"
+        - "PaydownReturn"
+      typical_questions:
+        - "Explain total return breakdown"
+        - "Top movers by PriceReturn"
+    columns:
+      Day1ValuationLoadID: {type: string}
+      Day1InstrumentID: {type: string}
+      TotalReturn: {type: float}
+      PriceReturn: {type: float}
+      CouponReturn: {type: float}
+      AccrualReturn: {type: float}
+      Day0ValuationLoadID: {type: string}
+      Day0InstrumentID: {type: string}
+
+joins:
+
+  - left_table: pvr01000
+    right_table: pvr00100
+    left_keys: ["DmrRunID", "PortfolioID"]
+    right_keys: ["DmrRunID", "PortfolioID"]
+    join_type: inner
+    description: "Attach run scenario/date context to portfolios in that run"
+    risk_notes: "1:1 or 1:many depending on pvr00100 uniqueness; prefer pvr00100 unique on DmrRunID"
+
+  - left_table: pvr01000
+    right_table: pvr00400
+    left_keys: ["PortfolioID"]
+    right_keys: ["PortfolioID"]
+    join_type: inner
+    description: "Expand portfolio to its instruments"
+    risk_notes: "Fan-out: portfolio -> many instruments"
+
+  - left_table: pvr00400
+    right_table: pvr00600
+    left_keys: ["InstrumentID", "PortfolioID"]
+    right_keys: ["InstrumentID", "PortfolioID"]
+    join_type: left
+    description: "Attach analytics measures to instrument master"
+    risk_notes: "If querying within a run context, also filter pvr00600 by DmrRunID to avoid mixing runs"
+
+  - left_table: pvr00600
+    right_table: pvr01100
+    left_keys: ["DmrRunID", "InstrumentID", "PortfolioID"]
+    right_keys: ["DMRRunID", "InstrumentID", "PortfolioID"]
+    join_type: left
+    description: "Attach characteristics/loan rollups to analytics"
+
+  - left_table: pnl00300
+    right_table: krd00100
+    left_keys: ["Day1ValuationLoadID", "Day1InstrumentID"]
+    right_keys: ["ValuationLoadId", "InstrumentID"]
+    join_type: left
+    description: "Link P&L attribution to KRD risk buckets"
+    risk_notes: "KRD is many rows per instrument -> fan-out; aggregate KRD before joining if needed"
