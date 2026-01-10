@@ -113,23 +113,112 @@ class BedrockClient:
         return vec
 
     def _mock_plan(self, user: str) -> Dict[str, Any]:
-        u = user.lower()
-        if "dashboard" in u or "chart" in u or "kpi" in u:
-            return {
-                "mode": "dashboard",
-                "tables": ["sales"],
-                "metrics": [{"name": "total_sales", "expr": "sum(sales)"}],
-                "dimensions": ["order_date"],
-                "filters": [],
-                "limit": 5000,
-                "chart": {"type": "line", "x": "order_date", "y": "total_sales", "color": None},
-            }
-        return {
-            "mode": "report",
-            "tables": ["sales"],
-            "metrics": [{"name": "total_sales", "expr": "sum(sales)"}],
-            "dimensions": ["region"],
+        """Heuristic mock planner.
+
+        When USE_MOCK_BEDROCK=1, we still want the app to work with *your* schema
+        (pvr/krd/pnl...), not the sample "sales" table.
+
+        The Streamlit orchestrator passes a prompt that already contains:
+        - Mode hint
+        - Top retrieved schema snippets (TABLE ... and JOIN RULE ...)
+        - The user's question
+
+        This function extracts table + column candidates from that prompt and
+        produces a plan that passes validate_plan().
+        """
+
+        import re
+
+        text = user or ""
+        u = text.lower()
+        mode = "dashboard" if ("mode hint: dashboard" in u or "dashboard" in u or "chart" in u or "kpi" in u) else "report"
+
+        # --- extract tables from grounding ---
+        tables = re.findall(r"\bTABLE\s+([A-Za-z0-9_]+)\s*:", text)
+        tables = [t.strip() for t in tables if t.strip()]
+        if not tables:
+            # fallback: try to spot pvr/krd/pnl tokens
+            for token in ("pvr", "krd", "pnl", "pnr"):
+                if token in u:
+                    tables = [token]
+                    break
+        table = tables[0] if tables else "pvr00400"
+
+        # --- extract columns (name + type) from grounding ---
+        cols = re.findall(r"-\s+([A-Za-z0-9_]+)\s*\(([^)]+)\)\s*:", text)
+        col_types = {c: (t or "").strip().lower() for c, t in cols}
+        col_names = list(col_types.keys())
+
+        def pick(cols_list, pred, prefer_keywords=None):
+            prefer_keywords = prefer_keywords or []
+            scored = []
+            for c in cols_list:
+                if not pred(c):
+                    continue
+                score = 0
+                lc = c.lower()
+                for kw in prefer_keywords:
+                    if kw in lc:
+                        score += 10
+                if lc in u:
+                    score += 5
+                scored.append((score, c))
+            scored.sort(reverse=True)
+            return scored[0][1] if scored else None
+
+        date_cols = [c for c, t in col_types.items() if "date" in t]
+        num_cols = [c for c, t in col_types.items() if any(x in t for x in ("float", "double", "decimal", "int"))]
+        str_cols = [c for c, t in col_types.items() if "string" in t]
+
+        # --- choose metric ---
+        if "count" in u or "how many" in u:
+            metric = {"name": "row_count", "expr": "count(*)"}
+        else:
+            num = pick(
+                num_cols,
+                lambda _c: True,
+                prefer_keywords=["upb", "amount", "balance", "price", "oas", "duration", "analytic", "return"],
+            )
+            if num is None and num_cols:
+                num = num_cols[0]
+            if num:
+                metric = {"name": f"total_{num}", "expr": f"sum({num})"}
+            else:
+                metric = {"name": "row_count", "expr": "count(*)"}
+
+        # --- choose dimension(s) ---
+        dims = []
+        # try to honor "by <col>" pattern
+        for c in col_names:
+            if f"by {c.lower()}" in u:
+                dims = [c]
+                break
+
+        if not dims:
+            if mode == "dashboard" and date_cols:
+                dims = [date_cols[0]]
+            elif str_cols:
+                dims = [str_cols[0]]
+            elif col_names:
+                dims = [col_names[0]]
+
+        plan: Dict[str, Any] = {
+            "mode": mode,
+            "tables": [table],
+            "metrics": [metric],
+            "dimensions": dims,
             "filters": [],
-            "limit": 100,
-            "sort": [{"by": "total_sales", "desc": True}],
+            "limit": 5000 if mode == "dashboard" else 200,
+            "sort": [{"by": metric["name"], "desc": True}],
         }
+
+        if mode == "dashboard":
+            x = dims[0] if dims else (date_cols[0] if date_cols else (str_cols[0] if str_cols else None))
+            plan["chart"] = {
+                "type": "line" if (x in date_cols) else "bar",
+                "x": x,
+                "y": metric["name"],
+                "color": None,
+            }
+
+        return plan

@@ -6,3 +6,4 @@ data/uploads/
 data/exports/
 logs/
 .env
+.idea/

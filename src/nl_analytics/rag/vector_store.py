@@ -32,6 +32,12 @@ class ChromaVectorStore:
         )
 
         self.client = chromadb.Client(settings=settings)
+        # Create / open a persistent collection.
+        # Note: embedding_fn must match Chroma's interface; orchestrator provides a compatible callable.
+        self.collection = self.client.get_or_create_collection(
+            name="nl-analytics",
+            embedding_function=embedding_fn,
+        )
 
     def upsert(self, ids: List[str], texts: List[str], metadatas: List[Dict[str, Any]]) -> None:
         try:
@@ -118,6 +124,7 @@ class S3VectorStore:
 
     def _upload(self) -> None:
         key = self._s3_key()
+        log.info(f"Key **********:::{key}")
         try:
             self.s3.upload_file(str(self.local_file), self.bucket, key)
             log.info("Uploaded S3 vector index", extra={"bucket": self.bucket, "key": key})

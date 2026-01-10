@@ -68,7 +68,31 @@ def ingest_uploaded_files(files):
             col_types = {c: spec.columns[c].type for c in spec.columns}
             df = coerce_types(df, col_types)
 
+
             sess.register_table(table, df, f.name)
+
+            # OPTIONAL: also index a light text representation of the uploaded rows into the vector store.
+            # This is what makes "seeing the file in the vector bucket" possible when using VECTOR_BACKEND=s3vectors.
+            # Keep this capped to avoid cost/latency for large files.
+            try:
+                max_rows = min(len(df), 2000)
+                if max_rows > 0:
+                    ids, texts, metas = [], [], []
+                    preview_df = df.head(max_rows)
+                    for i, row in enumerate(preview_df.itertuples(index=False), start=1):
+                        row_dict = row._asdict() if hasattr(row, "_asdict") else dict(zip(preview_df.columns, row))
+                        # build a compact, LLM-friendly row string
+                        parts = [f"{k}={row_dict.get(k)}" for k in list(preview_df.columns)[:50]]
+                        text = f"DATA ROW | table={table} | source={f.name} | " + " | ".join(parts)
+                        ids.append(f"data::{table}::{f.name}::{i}")
+                        texts.append(text)
+                        metas.append({"kind": "data", "table": table, "source_file": f.name, "row": i})
+
+                    orch.store.upsert(ids=ids, texts=texts, metadatas=metas)
+            except Exception as ve:
+                # Don't block ingestion if vector indexing fails; just show a warning.
+                st.warning(f"Loaded data into session, but vector indexing failed: {ve}")
+
             st.success(f"Ingested {f.name} → table '{table}' ({len(df)} rows, encoding {res.encoding_used})")
         except Exception as e:
             st.error(f"Ingestion failed for {f.name}: {e}")

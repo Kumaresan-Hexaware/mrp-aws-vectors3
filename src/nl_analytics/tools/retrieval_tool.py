@@ -14,7 +14,9 @@ class RetrievalResult:
 
 def retrieve_schema_chunks(store: VectorStore, question: str, top_k: int) -> RetrievalResult:
     chunks = store.query(question, top_k=top_k)
-    top = chunks[:3]
+    # Keep confidence grounded on schema objects only (tables/joins), even if the vector index also contains data-row chunks.
+    schema_chunks = [c for c in chunks if (c.metadata or {}).get("kind") in ("table", "join")]
+    top = (schema_chunks or chunks)[:3]
     confidence = sum(c.score for c in top) / max(1, len(top))
     log.info("Retrieved chunks", extra={"top_k": top_k, "confidence": round(confidence, 4)})
     return RetrievalResult(chunks=chunks, confidence=confidence)
