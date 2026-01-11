@@ -54,13 +54,16 @@ class AgentOrchestrator:
         class _EmbedFn:
             def __init__(self, br: BedrockClient):
                 self.br = br
+                # Optional: S3 Vectors index can require a specific embedding dimension.
+                # Stores the desired dimension (if known) and passes it to BedrockClient.embed().
+                self.desired_dimensions = None
 
             # ✅ IMPORTANT: parameter name must be `input` (not texts)
             def __call__(self, input):
                 # Chroma passes a list[str] typically; handle str too
                 if isinstance(input, str):
                     input = [input]
-                return self.br.embed(list(input))
+                return self.br.embed(list(input), dimensions=self.desired_dimensions)
 
             def name(self) -> str:
                 return "default"

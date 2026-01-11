@@ -1,0 +1,21 @@
+2026-01-11 02:41:48,534 | WARNING | bedrock.client | Bedrock chat failed
+2026-01-11 02:41:49,202 | WARNING | bedrock.client | Bedrock chat failed
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\bedrock\client.py", line 181, in chat_json
+    payload = json.loads(resp["body"].read().decode("utf-8"))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python311\Lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python311\Lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+2026-01-11 02:41:49,207 | WARNING | agents.orchestrator | Planning/validation failed
+  Stopping...
+
+----------------------------------------------------
+
+

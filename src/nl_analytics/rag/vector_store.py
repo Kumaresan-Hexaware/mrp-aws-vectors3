@@ -214,6 +214,20 @@ class S3VectorStore:
 
         try:
             q_emb = self.embedding_fn([query_text])[0]
+            # Validate query embedding dimension if we know the index dimension.
+            if getattr(self, "index_dimension", None) is not None:
+                expected = int(self.index_dimension)
+                if len(q_emb) != expected:
+                    raise RetrievalError(
+                        f"S3 Vectors index expects dimension={expected}, but query embedding has dimension={len(q_emb)}."
+                    )
+
+            if getattr(self, "index_dimension", None) is not None:
+                expected = int(self.index_dimension)
+                if len(q_emb) != expected:
+                    raise RetrievalError(
+                        f"S3 Vectors index expects dimension={expected}, but query embedding has dimension={len(q_emb)}."
+                    )
         except Exception as e:
             log.exception("Embedding generation failed during query")
             raise RetrievalError("Embedding generation failed") from e
@@ -266,6 +280,34 @@ class S3VectorsVectorStore:
         self.embedding_fn = embedding_fn
         self.client = boto3.client("s3vectors", region_name=region_name)
 
+        # Best-effort: fetch index attributes (dimension, dataType) so we can:
+        # 1) validate embedding dimension before PutVectors/QueryVectors
+        # 2) (for models that support it) request the correct embedding dimension from Bedrock.
+        self.index_dimension = None
+        self.index_data_type = None
+        try:
+            info = self.client.get_index(vectorBucketName=self.bucket, indexName=self.index)
+            index_obj = (info or {}).get("index") or {}
+            self.index_dimension = index_obj.get("dimension")
+            self.index_data_type = index_obj.get("dataType")
+            log.info(
+                "S3 Vectors index loaded",
+                extra={
+                    "bucket": self.bucket,
+                    "index": self.index,
+                    "dimension": self.index_dimension,
+                    "data_type": self.index_data_type,
+                },
+            )
+            if self.index_dimension is not None and hasattr(self.embedding_fn, "desired_dimensions"):
+                # Allows Titan Text Embeddings V2 to return vectors that match index dimension.
+                setattr(self.embedding_fn, "desired_dimensions", int(self.index_dimension))
+        except Exception as e:
+            log.warning(
+                "Could not fetch S3 Vectors index attributes (GetIndex). Continuing without dimension validation.",
+                extra={"bucket": self.bucket, "index": self.index, "error": str(e)},
+            )
+
     @staticmethod
     def _to_float32_payload(vec: List[float]) -> Dict[str, Any]:
         return {"float32": [float(x) for x in vec]}
@@ -279,6 +321,17 @@ class S3VectorsVectorStore:
         except Exception as e:
             log.exception("Embedding generation failed during S3Vectors upsert")
             raise RetrievalError("Embedding generation failed") from e
+
+        # Validate embedding dimensions if we know the index dimension.
+        if getattr(self, "index_dimension", None) is not None:
+            expected = int(self.index_dimension)
+            for j, emb in enumerate(embs):
+                if len(emb) != expected:
+                    raise RetrievalError(
+                        f"S3 Vectors index expects dimension={expected}, but embedding[{j}] has dimension={len(emb)}. "
+                        f"Fix by aligning the embedding model output dimension with the index dimension."
+                    )
+
 
         # API allows up to 500 vectors per request (keep smaller for safety)
         BATCH = 200

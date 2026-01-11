@@ -90,8 +90,12 @@ def ingest_uploaded_files(files):
 
                     orch.store.upsert(ids=ids, texts=texts, metadatas=metas)
             except Exception as ve:
-                # Don't block ingestion if vector indexing fails; just show a warning.
-                st.warning(f"Loaded data into session, but vector indexing failed: {ve}")
+                # Don't block ingestion if vector indexing fails, but surface the full error.
+                st.warning("Loaded data into session, but vector indexing failed. The exception is shown below.")
+                st.error(str(ve))
+                st.code(traceback.format_exc())
+                st.caption("Tip: If this is an S3 Vectors backend, a common cause is embedding dimension mismatch vs index dimension.")
+
 
             st.success(f"Ingested {f.name} → table '{table}' ({len(df)} rows, encoding {res.encoding_used})")
         except Exception as e:

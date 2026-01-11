@@ -1,0 +1,140 @@
+Test S3 Vector stored.
+aws s3vectors list-vectors --vector-bucket-name <your-bucket> --index-name <your-index> --max-results 500
+aws s3vectors list-vectors --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx --max-results 500
+
+python -m nl_analytics.tools.vector_index_checker --file PVR00100.nzf --table pvr00100
+
+aws s3vectors get-index  --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx
+
+{
+    "index": {
+        "vectorBucketName": "hexa-mrp-vec-us-east-1",
+        "indexName": "hexa-mrp-vec-idx",
+        "indexArn": "arn:aws:s3vectors:us-east-1:086840130036:bucket/hexa-mrp-vec-us-east-1/index/hexa-mrp-vec-idx",
+        "creationTime": "2026-01-11T01:06:37-05:00",
+        "dataType": "float32",
+        "dimension": 1024,
+        "distanceMetric": "cosine",
+        "encryptionConfiguration": {
+            "sseType": "AES256"
+        }
+    }
+}
+
+
+
+
+
+data::pvr00600::PVR00600.nzf::2
+
+TO check key (from ListVectors), fetch details:
+
+aws s3vectors get-vectors --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx --keys "table::pvr00400" --return-metadata
+  --region <AWS_REGION>
+
+
+  aws s3vectors query-vectors --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx --query-vector '{"float32":[0.01,0.02,0.03]}' --top-k 5
+  --region <AWS_REGION>
+
+Delete index
+-------------
+
+aws s3vectors delete-index \
+  --vector-bucket-name <VECTOR_BUCKET_NAME> \
+  --index-name <INDEX_NAME> \
+  --region <AWS_REGION>
+
+Recreate vector
+---------------
+
+aws s3vectors create-index \
+  --vector-bucket-name <VECTOR_BUCKET_NAME> \
+  --index-name <INDEX_NAME> \
+  --dimension <DIMENSION> \
+  --data-type float32 \
+  --distance-metric cosine \
+  --region <AWS_REGION>
+
+Delete vector
+--------------
+
+aws s3vectors delete-vectors \
+  --vector-bucket-name <VECTOR_BUCKET_NAME> \
+  --index-name <INDEX_NAME> \
+  --keys "key1" "key2" "key3" \
+  --region <AWS_REGION>
+
+How many vector created
+--------------------------
+
+aws s3vectors list-vectors \
+  --vector-bucket-name <BUCKET> \
+  --index-name <INDEX> \
+  --max-results 500 \
+  --region <REGION> \
+| grep -i "data::pvr00400::PVR00400.nzf"
+
+
+Region model
+
+aws bedrock list-foundation-models --region us-east-1 | grep -i haiku
+
+
+Quick “does it work?” questions
+
+“Show me the first 20 records from the instrument table.”
+
+“How many instruments are in the dataset?”
+
+“List 10 CUSIPs and their current UPB.”
+
+Portfolio-focused questions
+
+“Total current UPB by PortfolioID.”
+
+“Top 10 portfolios by current UPB.”
+
+“For each portfolio, show count of instruments and total original amount.”
+
+“Which portfolios have the highest average original amount per instrument?”
+
+Deal/CUSIP questions
+
+“Total current UPB by DealName.”
+
+“Top 20 deals by total current UPB.”
+
+“Show CUSIPs where current UPB is greater than 10 million.”
+
+“List all instruments for CUSIP <put a CUSIP value>.”
+
+Date / maturity questions
+
+“How many instruments mature in each year?”
+
+“Show instruments with maturity date after 2035.”
+
+“Average current UPB by issue year.”
+
+“Show instruments issued between 2018 and 2020, with current UPB and original amount.”
+
+Data quality checks (very useful)
+
+“How many records have missing CUSIP?”
+
+“Show rows where CurrentUPBAmt is missing or zero.”
+
+“Find duplicate InstrumentID values.”
+
+“What is the minimum and maximum maturity date?”
+
+Dashboard-style questions (if your UI supports charts)
+
+“Create a dashboard: total current UPB by DealName (bar chart) and instruments by maturity year (line chart).”
+
+“Dashboard showing: top 10 portfolios by current UPB + distribution of original amounts.”
+
+“Trend chart of total current UPB by issue year.”
+
+
+

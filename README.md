@@ -1,120 +1,140 @@
-# NL Analytics Agentic Prototype (RAG + ReAct) — Streamlit + Plotly
+- 
+- 
+- 
+- 
+- 
+- **Natural‑language Analytics** → dynamic **tabular reports** from uploaded **Ç‑delimited `.nzf`** (and other delimited text) files.
+- **Natural‑language Dashboards** → interactive **Plotly dashboards** (KPIs, charts, filters) generated from plain‑English questions.
+- **Strict grounding** → outputs are computed from uploaded data + schema registry only. If required data is missing/insufficient, the app responds with: **`Insufficient data.`**
 
-A **production-ready, reusable prototype** for:
-
-- **Natural-language Analytics** → ad-hoc **tabular reports** from uploaded **Ç-delimited `.nzf`** files (single or multiple with **registry-defined joins**).
-- **Natural-language Dashboards** → interactive **Plotly dashboards** (charts, KPIs, filters) generated from simple English questions.
-- **Strict grounding** → outputs are strictly based on uploaded data + schema registry. If data is missing/insufficient, the app returns: **`Insufficient data.`**
-
-This repo includes a **Mock Bedrock mode** for local development and a Bedrock wrapper with **retries + circuit breaker** for production usage.
+This repository supports:
+- **Amazon Bedrock** (chat + embeddings)
+- **Amazon S3 Vectors** (native S3 Vector Buckets) as the vector store backend
+- **Mock mode** for local development without AWS calls
 
 ---
 
-## Features
+## What you get
 
 ### Reports (Tabular)
-- Upload one or more `.nzf` files (Ç-delimited)
+- Upload one or more `.nzf` files (or delimited text)
 - Ask a business question in plain English
-- System generates an ad-hoc tabular report
-- Export formats:
+- The system generates an ad‑hoc tabular report (grounded in your data)
+- Export options:
   - **CSV**
   - **XML**
   - **PDF** (first 200 rows for safety)
 
 ### Dashboards (Plotly)
-- Ask a business question to generate a dashboard
+- Ask a question to generate a dashboard plan + figures
 - Plotly interactivity (zoom, pan, hover tooltips)
 - Save queries so dashboards are **regenerable**
-- Saved plans are stored in: `data/saved_queries/*.json`
+- Saved plans stored at: `data/saved_queries/*.json`
 
 ### Safety / No Hallucination
-The system refuses to answer and returns **`Insufficient data.`** when:
+The system returns **`Insufficient data.`** when:
 - Required tables are not uploaded
 - Retrieval confidence is below threshold
-- The LLM proposes tables/columns/joins not present in schema registry
-- Execution returns an empty result set
+- A proposed plan references tables/columns/joins not present in the schema registry
+- Execution returns an empty result set after filters/grouping
 
 ---
 
-## Architecture (RAG + Tool-Augmented ReAct)
+## Architecture
+
+**Pipeline (RAG + Tool‑Augmented ReAct):**
 
 1) **Ingestion**
-- Reads `.nzf` with configurable delimiter (default `Ç`)
-- Fallback encodings (`utf-8` → `latin-1`)
-- Skip malformed rows (configurable)
+- Reads `.nzf` using configurable delimiter (default `Ç`)
+- Fallback encodings (e.g., `utf‑8` → `latin‑1`)
+- Optional “skip bad lines” mode for malformed rows
 
-2) **Preprocessing**
-- Standardize column names
-- Type coercion using schema registry (logs coercions/warnings)
-
-3) **Schema Registry (Hard Rules)**
+2) **Schema Registry (Hard Rules)**
 - Logical table definitions
-- Table-to-file pattern mapping
-- Column types/descriptions
-- Join rules (join keys, join types)
-- **Joins are NEVER inferred by the LLM**
+- File pattern mapping: uploaded file → logical table
+- Column types + descriptions
+- Allowed join rules (keys, join types)
+- **Joins are never inferred by the LLM**; only registry-defined join paths are allowed
 
-4) **RAG (Schema Grounding)**
-- Index schema descriptions + join rules in **ChromaDB**
-- Retrieve relevant schema context per question
+3) **RAG (Schema Grounding)**
+- Indexes schema descriptions + join rules into the selected vector backend
+- Retrieves the most relevant schema context per user question
 
-5) **Query Understanding**
-- LLM returns a strict **JSON query plan**
-- Plan is validated against registry (tables, columns, join path, allowed aggregations)
+4) **Planning (LLM)**
+- LLM produces a strict **JSON query plan** (tables, joins, filters, aggregations, chart spec)
+
+5) **Validation**
+- Plan is validated against the schema registry (tables/cols/joins/aggregations)
+- If invalid → **Insufficient data** (with a helpful reason in logs)
 
 6) **Execution**
 - Executes safe SQL using **DuckDB**
-- Filters are parsed conservatively
-- Joins follow the registry join path only
+- Registry-defined join path only
 
 7) **Visualization & Export**
-- Plotly figure rendering (fallback to table if render fails)
+- Plotly figure rendering (fallback to table if figure render fails)
 - Report exports: CSV/XML/PDF
 
 ---
 
-## Project Layout
+## Project layout
 
 ```
-nl_analytics_agentic_prototype/
-  config/                    # env-specific configs (dev/test/accpt/prod)
-  schemas/                   # schema registry YAML
-  scripts/
-    streamlit_app.py         # Streamlit UI entrypoint
-  src/nl_analytics/
-    agents/                  # orchestrator (ReAct-style tool flow)
-    bedrock/                 # Bedrock wrapper (retries + circuit breaker)
-    config/                  # settings loader
-    data/                    # in-memory session + table store
-    exceptions/              # custom exceptions
-    export/                  # CSV/XML/PDF + saved query storage
-    ingestion/               # file reader + file-to-table mapper
-    preprocessing/           # cleaning + type coercion
-    rag/                     # vector store abstraction (Chroma wired)
-    schema/                  # registry loader + join path reasoning
-    tools/                   # retrieval / planning / execution tools
-    viz/                     # plotly figure factory
-    logging/                 # logger init
-  data/
-    sample/                  # sample nzf
-    exports/                 # exported files
-    saved_queries/           # saved dashboard plans
-  logs/
+.
+├─ config/                       # env-specific configs (dev/test/acpt/prod)
+├─ schemas/                      # schema registry YAML
+├─ scripts/
+│  └─ streamlit_app.py           # Streamlit UI entrypoint
+├─ src/nl_analytics/
+│  ├─ agents/                    # orchestrator (tool flow)
+│  ├─ bedrock/                   # Bedrock wrapper
+│  ├─ config/                    # settings loader
+│  ├─ data/                      # in-memory session + table store
+│  ├─ exceptions/                # custom exceptions
+│  ├─ export/                    # CSV/XML/PDF + saved query storage
+│  ├─ ingestion/                 # file reader + file-to-table mapper
+│  ├─ preprocessing/             # cleaning + type coercion
+│  ├─ rag/                       # vector store backends (s3vectors/chroma)
+│  ├─ schema/                    # registry loader + join reasoning
+│  ├─ tools/                     # retrieval / planning / execution tools
+│  ├─ viz/                       # plotly figure factory
+│  └─ logging/                   # logger init
+│
+├─ data/
+│  ├─ sample/                    # sample nzf
+│  ├─ exports/                   # exported files
+│  └─ saved_queries/             # saved dashboard plans
+└─ logs/
 ```
+
+> **Note:** This repo uses a `src/` layout. Run commands from the repo root.
 
 ---
 
-## Setup Guide (Local)
+## Prerequisites
 
-### 1) Create venv
+- Python **3.10+** (3.11 recommended)
+- AWS access (only if using Bedrock / S3 Vectors)
+- If using S3 Vectors:
+  - A **Vector Bucket** and an **Index** created in the target region
+  - Index dimension must match your embedding dimension (details below)
+
+---
+
+## Quick start (Local)
+
+### 1) Create & activate a virtual environment
 ```bash
 python -m venv venv
 
-# Windows
-venv\Scripts\activate
+# Windows (PowerShell)
+venv\Scripts\Activate.ps1
+
+# Windows (cmd)
+venv\Scripts\activate.bat
 
 # macOS / Linux
-# source venv/bin/activate
+source venv/bin/activate
 ```
 
 ### 2) Install dependencies
@@ -123,17 +143,16 @@ pip install -r requirements.txt
 ```
 
 ### 3) Configure environment
-```bash
-cp .env.example .env
-```
+Create `.env` (or copy from `.env.example` if present):
 
-Recommended for local (no AWS calls):
+**Local dev without AWS calls**
 ```env
 APP_ENV=dev
 USE_MOCK_BEDROCK=1
+VECTOR_BACKEND=chroma
 ```
 
-### 4) Run the app
+### 4) Run the Streamlit app
 ```bash
 streamlit run scripts/streamlit_app.py
 ```
@@ -143,47 +162,111 @@ Upload:
 - `data/sample/sample_sales.nzf`
 
 Then ask:
-- **Reports:** `total sales by region`
-- **Dashboards:** `dashboard of total sales over time`
+- **Report:** `total sales by region`
+- **Dashboard:** `dashboard of total sales over time`
 
 ---
 
-## Configuration
+## Configuration model
 
-- `APP_ENV=dev|test|accpt|prod` loads `config/<env>.yaml`
-- Environment variables override YAML
+- `APP_ENV=dev|test|acpt|prod` loads `config/<env>.yaml`
+- Environment variables override YAML values
 
-### Common env vars
-**Ingestion**
+### Common environment variables
+
+#### Ingestion
 - `DEFAULT_DELIMITER` (default `Ç`)
 - `FALLBACK_ENCODINGS` (e.g., `utf-8,latin-1`)
-- `SKIP_BAD_LINES` (1/0)
+- `SKIP_BAD_LINES` (`1`/`0`)
 
-
-**RAG**
-- `VECTOR_BACKEND` (`chroma` or `s3`)
-- `CHROMA_DIR` (default `.chroma`)
+#### RAG / Retrieval
+- `VECTOR_BACKEND` (`chroma` | `s3vectors`)
 - `RAG_TOP_K` (default `8`)
 - `RAG_MIN_SCORE` (default `0.25`)
 
-**S3 Vector Bucket backend (optional)**
-- `S3_VECTOR_BUCKET` (required when `VECTOR_BACKEND=s3`)
-- `S3_VECTOR_PREFIX` (default `nl-analytics/vectors`)
-- `S3_VECTOR_CACHE_DIR` (default `.s3_vector_cache`)
-- `S3_VECTOR_REFRESH_SECONDS` (default `300`)
-
-**Agent**
+#### Agent
 - `AGENT_MIN_CONFIDENCE` (default `0.45`)
 - `LLM_TEMPERATURE` (default `0.1`)
 - `LLM_MAX_TOKENS` (default `1200`)
 
-**Export**
+#### Export
 - `EXPORT_DIR` (default `data/exports`)
 - `SAVED_QUERY_DIR` (default `data/saved_queries`)
 
 ---
 
-## Schema Registry
+## Using Amazon Bedrock
+
+### 1) Disable mock mode
+In `.env`:
+```env
+USE_MOCK_BEDROCK=0
+AWS_REGION=us-east-1
+BEDROCK_CHAT_MODEL_ID=<your_chat_model_id>
+BEDROCK_EMBED_MODEL_ID=<your_embed_model_id>
+```
+
+### 2) Provide AWS credentials
+Any standard method:
+- `AWS_PROFILE`
+- environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`)
+- AWS SSO
+- instance/task role (EC2/ECS)
+
+---
+
+## Using Amazon S3 Vectors (native vector buckets)
+
+### 1) Enable S3 Vectors backend
+Set in `.env`:
+
+```env
+VECTOR_BACKEND=s3vectors
+S3VECTORS_BUCKET=your-vector-bucket
+S3VECTORS_INDEX=your-index-name
+S3VECTORS_NAMESPACE=default
+AWS_REGION=us-east-1
+USE_MOCK_BEDROCK=0
+```
+
+> You can also set `S3VECTORS_INDEX` to an **index ARN** instead of a name.
+
+### 2) Dimension alignment (important)
+S3 Vectors requires the vector length to match the index dimension exactly.
+
+- If your index is **1024‑dim**, your embedding output must be **1024‑dim**
+- If your index is **512‑dim**, your embedding output must be **512‑dim**, etc.
+
+This repo’s S3 Vectors backend and CLI tester are designed to:
+- fetch the index dimension (when permitted)
+- request embeddings at that dimension when the embedding model supports it (e.g., Titan v2)
+
+### 3) IAM permissions (typical)
+- `bedrock:InvokeModel` (embedding + chat)
+- `s3vectors:PutVectors` (write)
+- `s3vectors:QueryVectors` (search)
+- `s3vectors:GetVectors` / `s3vectors:GetIndex` (debug/verification)
+
+---
+
+## End‑to‑end vector ingestion test (CLI)
+
+Use the helper to validate **Bedrock → S3 Vectors** independently of the GUI:
+
+```bash
+python -m nl_analytics.tools.vector_upload_tester --file path/to/yourfile.nzf
+```
+
+Optional region override (if the vector bucket/index is in a different region from Bedrock):
+```bash
+python -m nl_analytics.tools.vector_upload_tester --file path/to/yourfile.nzf --s3vectors-region us-west-2
+```
+
+The tester prints either a success message or the exact AWS exception (permissions, region, validation, etc.).
+
+---
+
+## Schema registry
 
 File:
 - `schemas/schema_registry.yaml`
@@ -198,44 +281,7 @@ Defines:
 
 ---
 
-## AWS Bedrock Setup
-
-### 1) Disable mock mode
-In `.env`:
-```env
-USE_MOCK_BEDROCK=0
-AWS_REGION=us-east-1
-BEDROCK_CHAT_MODEL_ID=<your_chat_model_id>
-BEDROCK_EMBED_MODEL_ID=<your_embed_model_id>
-```
-
-### 2) Provide AWS credentials
-Any standard method:
-- `AWS_PROFILE`
-- env vars (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`)
-- SSO
-- instance/task role (EC2/ECS)
-
-### 3) Reliability included
-- 3 retries with exponential backoff
-- simple circuit breaker (opens after repeated failures and auto-recovers)
-
-> Note: Bedrock request/response schemas vary by model provider. This prototype includes a simple JSON-returning wrapper; you may adapt the payload format to your chosen Bedrock model.
-
----
-
-## Exports
-
-### Reports
-Exports are written to `EXPORT_DIR` and also provided as download buttons in the UI.
-
-### Dashboards
-Plotly is rendered in the UI.  
-To add file exports (HTML/PNG/SVG/PDF), extend `src/nl_analytics/viz/` using `kaleido`.
-
----
-
-## Logging
+## Logging & observability
 
 Log file:
 - `logs/app.log`
@@ -243,16 +289,28 @@ Log file:
 Logged operations include:
 - upload / ingestion
 - schema mapping
-- retrieval confidence
+- retrieval scores
 - plan validation
 - query execution
-- chart render
-- export operations
-- exception traces
+- chart rendering
+- exports
+- full exception traces (including S3 Vectors ingestion failures)
 
 ---
 
 ## Troubleshooting
+
+### Vectors not appearing in S3 Vectors
+1) Run the CLI tester:
+   ```bash
+   python -m nl_analytics.tools.vector_upload_tester --file path/to/yourfile.nzf
+   ```
+2) Check `logs/app.log` for the exact exception.
+3) Most common causes:
+   - index dimension mismatch
+   - wrong region for the `s3vectors` client
+   - missing IAM permissions (`s3vectors:PutVectors`)
+   - outdated boto3 that doesn’t support `s3vectors`
 
 ### “Insufficient data.”
 Typical causes:
@@ -262,64 +320,23 @@ Typical causes:
 - query executes but result is empty after filtering/grouping
 
 ### Delimiter shows as `Ã‡`
-This is almost always encoding mismatch. Ensure:
+Usually encoding mismatch. Ensure:
 - `DEFAULT_DELIMITER=Ç`
-- `FALLBACK_ENCODINGS` includes `latin-1` if your files aren’t UTF-8
-
-### Reset vector store
-Delete `.chroma/` and restart:
-```bash
-rm -rf .chroma
-```
+- `FALLBACK_ENCODINGS` includes `latin-1` if your files aren’t UTF‑8
 
 ---
 
-## Extending / Production Hardening
+## Production hardening checklist (recommended)
 
-- Implement `PgVectorStore` and `S3VectorStore` in `src/nl_analytics/rag/vector_store.py`
-- Add streaming ingestion for very large files
-- Persist standardized tables as Parquet to avoid reprocessing
-- Add stronger plan grammar + richer chart spec mapping for 20+ chart types
+- Persist standardized tables as Parquet to avoid reprocessing on every restart
+- Stream ingestion for very large files (chunked reads + chunk embeddings)
+- Add request tracing/correlation IDs (UI → ingestion → retrieval → execution)
+- Add authn/authz if used beyond a trusted network
+- Add structured logging + centralized log shipping (CloudWatch/ELK)
+- Add rate-limits and cost guardrails for LLM calls
 
 ---
 
 ## License
+
 Internal prototype for extension and evaluation.
-
-
-## If you see `ModuleNotFoundError: No module named 'nl_analytics'`
-
-This repo uses a `src/` layout. The Streamlit app auto-adds `src/` to `sys.path`. If you run other scripts, run from the repo root or add `src/` to `PYTHONPATH`.
-
-
-## Chroma error: `_EmbedFn` has no attribute `name`
-If you see an error like:
-`AttributeError: '_EmbedFn' object has no attribute 'name'`
-
-You are using a newer Chroma version that expects `name()`/`get_config()` on the embedding function.
-This prototype includes that adapter. If you still see conflicts due to an old persisted collection,
-delete the local Chroma directory and restart:
-```bash
-rm -rf .chroma
-```
-
-
-## Using Amazon S3 Vector Buckets (native S3 Vectors)
-
-If your bucket is a **vector bucket** (visible via `aws s3vectors list-vector-buckets`), you must use the **S3 Vectors API** (not normal S3 PutObject).
-
-Set in `.env`:
-
-```env
-VECTOR_BACKEND=s3vectors
-S3VECTORS_BUCKET=your-vector-bucket
-S3VECTORS_INDEX=your-index-name
-S3VECTORS_NAMESPACE=default
-```
-
-Permissions needed (typical):
-- `s3vectors:PutVectors` (write vectors)
-- `s3vectors:QueryVectors` (search)
-- `s3vectors:GetVectors` (required because this prototype queries with `returnMetadata=True`)
-
-This prototype stores the chunk text inside vector metadata key `source_text` (AWS docs use the same approach).

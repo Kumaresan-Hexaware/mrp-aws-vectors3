@@ -4,11 +4,14 @@ import time
 import random
 import hashlib
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from nl_analytics.bedrock.circuit import CircuitBreaker
 from nl_analytics.logging.logger import get_logger
 from nl_analytics.exceptions.errors import AgentExecutionError
+
+import re
+from typing import Any, Dict
 
 log = get_logger("bedrock.client")
 
@@ -34,18 +37,38 @@ class BedrockClient:
             import boto3
             self.br = boto3.client("bedrock-runtime", region_name=cfg.region)
 
-    def embed(self, texts: List[str]) -> List[List[float]]:
+
+    def embed(self, texts: List[str], *, dimensions: Optional[int] = None) -> List[List[float]]:
+        """
+        Generate embeddings for a list of texts via Amazon Bedrock.
+
+        Parameters
+        ----------
+        texts:
+            List of strings to embed.
+        dimensions:
+            Optional embedding dimension hint. Some Bedrock embedding models (e.g., Titan Text Embeddings V2)
+            support requesting a specific output dimension. If the underlying model does not support this
+            parameter, it will be ignored.
+        """
         if self.cfg.use_mock:
-            return [self._mock_embed(t) for t in texts]
+            dim = int(dimensions) if dimensions else 512
+            return [self._mock_embed(t, dimensions=dim) for t in texts]
 
         if not self.cb.allow():
             raise AgentExecutionError("Bedrock circuit breaker is open (embedding).")
 
+        model_id = (self.cfg.embed_model_id or "").lower()
+        supports_dimensions = ("titan-embed-text-v2" in model_id)
+
         last_err = None
         for attempt in range(1, 4):
             try:
-                body = {"inputText": None}
-                vectors = []
+                body: Dict[str, Any] = {"inputText": None}
+                if dimensions is not None and supports_dimensions:
+                    body["dimensions"] = int(dimensions)
+
+                vectors: List[List[float]] = []
                 for t in texts:
                     body["inputText"] = t
                     resp = self.br.invoke_model(
@@ -55,15 +78,71 @@ class BedrockClient:
                         contentType="application/json",
                     )
                     payload = json.loads(resp["body"].read().decode("utf-8"))
-                    vectors.append(payload["embedding"])
+                    emb = payload.get("embedding") or payload.get("vector") or payload.get("embeddings")
+                    if emb is None:
+                        raise AgentExecutionError(f"Embedding response missing 'embedding' field: keys={list(payload.keys())}")
+                    vectors.append(emb)
                 self.cb.record_success()
                 return vectors
             except Exception as e:
                 last_err = e
-                log.warning("Bedrock embed failed", extra={"attempt": attempt, "error": str(e)})
+                log.warning(
+                    "Bedrock embed failed",
+                    extra={
+                        "attempt": attempt,
+                        "error": str(e),
+                        "model_id": self.cfg.embed_model_id,
+                        "dimensions": dimensions,
+                    },
+                )
                 self.cb.record_failure()
                 _sleep_backoff(attempt)
         raise AgentExecutionError("Bedrock embedding call failed after retries.") from last_err
+
+
+    def _extract_claude_text_from_messages_api(self,payload: Dict[str, Any]) -> str:
+        """
+        Claude 3 Bedrock Messages API returns:
+          {"content":[{"type":"text","text":"..."}], ...}
+        """
+        parts = []
+        for c in payload.get("content", []) or []:
+            if isinstance(c, dict) and c.get("type") == "text":
+                parts.append(c.get("text", ""))
+        return "".join(parts).strip()
+
+
+
+    def _extract_first_json_object(self,text: str) -> Dict[str, Any]:
+        """
+        Robustly extract JSON object from a model response that may include prose.
+        Supports:
+          - prose + JSON
+          - ```json ... ```
+        """
+        _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+        if not text or not text.strip():
+            raise ValueError("LLM returned empty text; cannot parse JSON.")
+
+        t = text.strip()
+
+        # If fenced code block exists, prefer it.
+        m = _JSON_FENCE_RE.search(t)
+        if m:
+            t = m.group(1).strip()
+
+        # If it is already pure JSON, parse directly.
+        if t.startswith("{") and t.endswith("}"):
+            return json.loads(t)
+
+        # Otherwise, take substring between first '{' and last '}'.
+        start = t.find("{")
+        end = t.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise ValueError(f"Could not locate JSON object in LLM text. Head: {t[:200]!r}")
+
+        candidate = t[start: end + 1].strip()
+        return json.loads(candidate)
 
     def chat_json(self, system: str, user: str, schema: Dict[str, Any]) -> Dict[str, Any]:
         if self.cfg.use_mock:
@@ -81,16 +160,24 @@ class BedrockClient:
                     f"{user}"
                 )
                 body = {
-                    "prompt": prompt,
-                    "max_tokens_to_sample": self.cfg.max_tokens,
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": self.cfg.max_tokens,
                     "temperature": self.cfg.temperature,
+                    "messages": [
+                        {"role": "user", "content": prompt}
+                    ],
                 }
                 resp = self.br.invoke_model(
                     modelId=self.cfg.chat_model_id,
-                    body=json.dumps(body).encode("utf-8"),
-                    accept="application/json",
                     contentType="application/json",
+                    accept="application/json",
+                    body=json.dumps(body).encode("utf-8")
                 )
+
+                raw = json.loads(resp["body"].read())
+                model_text = self._extract_claude_text_from_messages_api(raw)
+                log.info("Claude text head: %r", model_text[:300])
+
                 payload = json.loads(resp["body"].read().decode("utf-8"))
                 text = payload.get("completion") or payload.get("generation") or payload.get("outputText") or ""
                 out = json.loads(text.strip())
@@ -101,13 +188,17 @@ class BedrockClient:
                 log.warning("Bedrock chat failed", extra={"attempt": attempt, "error": str(e)})
                 self.cb.record_failure()
                 _sleep_backoff(attempt)
+                log.warning("Bedrock chat failed", exc_info=True)
+                raise
+
         raise AgentExecutionError("Bedrock chat call failed after retries.") from last_err
 
     # ---- mocks ----
-    def _mock_embed(self, text: str) -> List[float]:
+    def _mock_embed(self, text: str, *, dimensions: int = 512) -> List[float]:
         h = hashlib.sha256(text.encode("utf-8")).digest()
         vec = []
-        for i in range(512):
+        dim = max(1, int(dimensions))
+        for i in range(dim):
             b = h[i % len(h)]
             vec.append((b / 255.0) * 2 - 1)
         return vec
