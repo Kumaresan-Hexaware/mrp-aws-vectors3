@@ -1,0 +1,34 @@
+{
+  "id": "1768262069135",
+  "created_at": 1768262069.1355264,
+  "mode": "dashboard",
+  "question": "Bar: Count of payment structures by type (top N)",
+  "plan": {
+    "mode": "dashboard",
+    "tables": [
+      "pvr01500"
+    ],
+    "metrics": [
+      {
+        "name": "Count",
+        "expr": "COUNT(*)"
+      }
+    ],
+    "dimensions": [
+      "PaymentStructureTypeCode"
+    ],
+    "filters": [],
+    "sort": [
+      {
+        "by": "Count",
+        "desc": true
+      }
+    ],
+    "limit": 10,
+    "chart": {
+      "type": "bar",
+      "x": "PaymentStructureTypeCode",
+      "y": "Count"
+    }
+  }
+}

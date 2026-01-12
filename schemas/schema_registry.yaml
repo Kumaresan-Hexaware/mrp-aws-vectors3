@@ -11,6 +11,83 @@ defaults:
 
 tables:
 
+  pvr01500:
+    file_patterns: [ "*PVR01500*.nzf", "PVR01500.nzf" ]
+
+    # Business meaning of the table (what it represents)
+    description: >
+      Payment-structure and historical variable-rate attributes by Instrument and PaymentStructure.
+      Use this table to analyze variable-rate reset history and coupon percent for instruments,
+      grouped by portfolio and as-of (PortfolioDate). One row typically represents a payment
+      structure instance for an instrument within a DMR run.
+
+    # Helpful for NL queries: alternate names users might say
+    aliases:
+      - "PVR01500"
+      - "payment structure"
+      - "payment schedule"
+      - "variable rate history"
+      - "rate reset history"
+      - "historical coupon"
+      - "coupon history"
+
+    primary_key: [ "DMRRunID", "InstrumentID", "PaymentStructureID" ]
+
+    # Optional: high-level topics/tags for retrieval
+    business_tags:
+      - "rates"
+      - "variable-rate"
+      - "payment-structure"
+      - "portfolio"
+      - "as-of"
+
+    columns:
+      DMRRunID:
+        type: string
+        description: "DMR run identifier (batch/run context)."
+        aliases: [ "run id", "dmr run", "batch id", "as of run" ]
+
+      InstrumentID:
+        type: string
+        description: "Instrument identifier."
+        aliases: [ "instrument", "security", "pool", "cusip", "id" ]
+
+      PaymentStructureID:
+        type: string
+        description: "Unique identifier for a payment structure tied to an instrument."
+        aliases: [ "payment structure id", "structure id", "ps id" ]
+
+      PaymentStructureTypeCode:
+        type: string
+        description: "Code representing the payment structure type."
+        aliases: [ "payment type", "structure type", "payment structure type", "type code" ]
+
+      HistoricalVarRateResetDate:
+        type: date
+        description: "Date when the variable rate was reset (historical)."
+        aliases: [ "reset date", "rate reset date", "var reset", "reprice date" ]
+
+      HistoricalVarRateCouponPercent:
+        type: float
+        description: "Coupon percent after the historical variable-rate reset."
+        aliases: [ "coupon", "coupon percent", "interest rate", "rate", "var coupon", "reset coupon" ]
+
+      PortfolioID:
+        type: string
+        description: "Portfolio identifier."
+        aliases: [ "portfolio", "portfolio id", "account", "book" ]
+
+      PortfolioDate:
+        type: date
+        description: "As-of date for the portfolio snapshot."
+        aliases: [ "as of date", "portfolio asof", "snapshot date", "report date" ]
+
+    # Optional: examples of how the business uses this table (helps NL/RAG)
+    examples:
+      - "UPB or instrument count by payment structure type for a given PortfolioDate"
+      - "List instruments with variable-rate reset date in a given month"
+      - "Average coupon percent by portfolio and payment structure type"
+
   pvr00100:
     file_patterns: ["*PVR00100*.nzf"]
     description: "Run metadata and scenario selections for a PRIMA valuation run"

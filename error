@@ -34,4 +34,4 @@ For `use_container_width=True`, use `width='stretch'`. For `use_container_width=
     raise SchemaValidationError(f"Unknown column: {col}")
 nl_analytics.exceptions.errors.SchemaValidationError: Unknown column: GuarantorTypeCode
 
-user can able to query based out of all avalilable coloums in the files using business context name on those coloums 
+user can able to query based out of all avalilable coloums in the files using business context name on those coloums
