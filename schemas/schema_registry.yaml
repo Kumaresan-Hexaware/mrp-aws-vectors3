@@ -56,7 +56,10 @@ tables:
       DmrRunID: {type: string}
 
   pvr00400:
-    file_patterns: ["*PVR00400*.nzf"]
+    file_patterns:
+      - "*pvr00400*.nzf"
+      - "PVR00400.nzf"
+      - "PVR00400_synthetic_1000.nzf"
     description: "Instrument master / security attributes (very wide)"
     primary_key: ["InstrumentID", "PortfolioID"]
     allow_additional_columns: true

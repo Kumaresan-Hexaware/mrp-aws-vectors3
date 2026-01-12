@@ -1,21 +1,27 @@
-2026-01-11 02:41:48,534 | WARNING | bedrock.client | Bedrock chat failed
-2026-01-11 02:41:49,202 | WARNING | bedrock.client | Bedrock chat failed
+
+The below 2 Queries working now
+Show total CurrentUPBAmt grouped by PortfolioID, sort descending
+Create a dashboard of total CurrentUPBAmt by PortfolioID (bar chart), sorted descending
+
+But the below query is not working getting error
+
+Question
+Create a dashboard with Total UPB by PortfolioID (bar chart) and a KPI for total UPB . and also User will query the coloum's possible business name not the actual coloum name
+
+Error
+2026-01-12 00:23:23,878 | INFO | tools.retrieval | Retrieved chunks
+2026-01-12 00:23:23,879 | INFO | agents.orchestrator | Confidence computed
+2026-01-12 00:23:30,375 | INFO | bedrock.client | Claude text head: 'Here is a JSON object that matches the required schema for the query planning agent:\n\n{\n  "mode": "dashboard",\n  "tables": [\n    "pvr00400",\n    "pvr01000"\n
+  ],\n  "metrics": [\n    {\n      "name": "total_upb",\n      "expr": "SUM(pvr00400.CurrentUPBAmt)"\n    }\n  ],\n  "dimensions": [\n    "pvr01000.Port'
+2026-01-12 00:23:30,377 | WARNING | agents.orchestrator | Planning/validation failed: Unknown column: pvr01000.PortfolioID
 Traceback (most recent call last):
-  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\bedrock\client.py", line 181, in chat_json
-    payload = json.loads(resp["body"].read().decode("utf-8"))
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\hp\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 346, in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\hp\AppData\Local\Programs\Python\Python311\Lib\json\decoder.py", line 337, in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\hp\AppData\Local\Programs\Python\Python311\Lib\json\decoder.py", line 355, in raw_decode
-    raise JSONDecodeError("Expecting value", s, err.value) from None
-json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-2026-01-11 02:41:49,207 | WARNING | agents.orchestrator | Planning/validation failed
-  Stopping...
-
-----------------------------------------------------
-
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 149, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 137, in validate_plan
+    dimensions.append(_canonicalize_col(str(d), all_cols, col_map))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 67, in _canonicalize_col
+    raise SchemaValidationError(f"Unknown column: {col}")
+nl_analytics.exceptions.errors.SchemaValidationError: Unknown column: pvr01000.PortfolioID
 

@@ -148,7 +148,7 @@ class AgentOrchestrator:
                 raw_plan["mode"] = mode_hint
             plan = validate_plan(self.registry, raw_plan)
         except (SchemaValidationError, AgentExecutionError, Exception) as e:
-            log.warning("Planning/validation failed", extra={"error": str(e)})
+            log.warning("Planning/validation failed: %s", str(e), exc_info=True)
             return AgentResult(ok=False, message=INSUFFICIENT, confidence=confidence)
 
         try:
@@ -156,11 +156,39 @@ class AgentOrchestrator:
             if df is None or df.empty:
                 return AgentResult(ok=False, message=INSUFFICIENT, plan=raw_plan, confidence=confidence, df=df)
         except Exception as e:
-            log.warning("Execution failed", extra={"error": str(e)})
+            log.warning("Execution failed: %s", str(e), exc_info=True)
             return AgentResult(ok=False, message=INSUFFICIENT, plan=raw_plan, confidence=confidence)
 
         if plan.mode == "dashboard":
-            spec = plan.chart or {"type": "bar", "x": (plan.dimensions[0] if plan.dimensions else df.columns[0]), "y": plan.metrics[0]["name"]}
+            # Build/repair chart spec so Plotly rendering doesn't fail when the model omits x/y.
+            spec = dict(plan.chart or {})
+            spec_type = (spec.get("type") or "bar").lower()
+            spec["type"] = spec_type
+
+            if spec_type in {"bar", "line", "scatter", "area"}:
+                if not spec.get("x"):
+                    spec["x"] = plan.dimensions[0] if plan.dimensions else (df.columns[0] if len(df.columns) else None)
+
+                if not spec.get("y"):
+                    y0 = plan.metrics[0]["name"] if (plan.metrics and isinstance(plan.metrics[0], dict)) else None
+                    if y0 and y0 in df.columns:
+                        spec["y"] = y0
+                    else:
+                        xcol = spec.get("x")
+                        numeric_cols = [c for c in df.columns if c != xcol and pd.api.types.is_numeric_dtype(df[c])]
+                        if numeric_cols:
+                            spec["y"] = numeric_cols[0]
+                        elif len(df.columns) > 1:
+                            spec["y"] = df.columns[1]
+
+            if spec_type == "pie":
+                if not spec.get("names") and plan.dimensions:
+                    spec["names"] = plan.dimensions[0]
+                if not spec.get("values") and plan.metrics:
+                    y0 = plan.metrics[0]["name"]
+                    if y0 in df.columns:
+                        spec["values"] = y0
+
             try:
                 fig = build_figure(df, spec)
                 return AgentResult(ok=True, message="OK", plan=raw_plan, confidence=confidence, df=df, figure=fig)

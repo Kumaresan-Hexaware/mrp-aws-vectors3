@@ -40,8 +40,17 @@ def _metric_sql(metrics: List[Dict[str, str]]) -> List[str]:
         expr = m["expr"].strip()
         agg = expr.split("(", 1)[0].strip()
         col = expr.split("(", 1)[1].rstrip(")").strip()
+        agg_l = agg.lower()
+
         if col == "*":
             out.append(f"{agg.upper()}(*) AS {_sql_ident(name)}")
+            continue
+
+        # SUM/AVG should be numeric-safe because many CSV/NZF fields load as strings.
+        if agg_l in {"sum", "avg"}:
+            out.append(
+                f"{agg.upper()}(TRY_CAST({_sql_ident(col)} AS DOUBLE)) AS {_sql_ident(name)}"
+            )
         else:
             out.append(f"{agg.upper()}({_sql_ident(col)}) AS {_sql_ident(name)}")
     return out
@@ -70,21 +79,28 @@ def _filters_sql(filters: List[str]) -> str:
 
 def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     registry = session.registry
-    for t in plan.tables:
+
+    # Resolve plan tables to registry-canonical names (case-insensitive)
+    tables = [session.canonical_table_name(t) for t in plan.tables]
+
+    for t in tables:
         if not session.has_table(t):
             raise AgentExecutionError(f"Missing table data for '{t}'")
 
+    # NOTE: `duckdb.connect()` returns a connection object; it is **not** callable.
+    # Calling it like a function raises:
+    #   TypeError: '_duckdb.DuckDBPyConnection' object is not callable
     con = duckdb.connect(database=":memory:")
     try:
-        for t in plan.tables:
-            con.register(t, session.tables[t])
+        for t in tables:
+            con.register(t, session.get_table(t))
 
         select_cols = []
         for d in plan.dimensions:
             select_cols.append(_sql_ident(d))
         select_cols.extend(_metric_sql(plan.metrics))
 
-        join_sql, _ = build_join_sql(registry, plan.tables)
+        join_sql, _ = build_join_sql(registry, tables)
 
         group_by = ""
         if plan.dimensions:
@@ -104,7 +120,8 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
             if parts:
                 order_sql = "ORDER BY " + ", ".join(parts)
 
-        limit_sql = f"LIMIT {int(plan.limit)}"
+        # LIMIT is validated in planning_tool (min 1, max 200000). Still keep this defensive.
+        limit_sql = f"LIMIT {int(plan.limit)}" if int(plan.limit) > 0 else ""
 
         sql = f"""
         SELECT {", ".join(select_cols)}

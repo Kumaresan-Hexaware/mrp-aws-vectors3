@@ -110,7 +110,7 @@ with st.expander("Loaded Tables", expanded=True):
     if sess.available_tables():
         t = sess.available_tables()[0]
         st.write(f"**Preview:** {t}")
-        st.dataframe(sess.tables[t].head(20), use_container_width=True)
+        st.dataframe(sess.get_table(t).head(20), use_container_width=True)
 
 tabs = st.tabs(["Reports", "Dashboards"])
 
@@ -122,7 +122,11 @@ with tabs[0]:
 
     q = st.text_input("Ask a business question (report):", key="rep_q", placeholder="e.g., total sales by region for 2025")
     if st.button("Generate report", key="rep_run"):
-        res = orch.run(st.session_state["data_session"], q, mode_hint="report")
+        sess = st.session_state["data_session"]
+        if not sess.available_tables():
+            st.error("No tables loaded. Please upload and ingest your .nzf file first.")
+            st.stop()
+        res = orch.run(sess, q, mode_hint="report")
         st.session_state["last_plan"] = res.plan
         if not res.ok:
             st.error(INSUFFICIENT)
@@ -164,7 +168,11 @@ with tabs[1]:
     save = b2.button("Save query", key="dash_save")
 
     if run:
-        res = orch.run(st.session_state["data_session"], q, mode_hint="dashboard")
+        sess = st.session_state["data_session"]
+        if not sess.available_tables():
+            st.error("No tables loaded. Please upload and ingest your .nzf file first.")
+            st.stop()
+        res = orch.run(sess, q, mode_hint="dashboard")
         st.session_state["last_plan"] = res.plan
         if not res.ok:
             st.error(INSUFFICIENT)
@@ -195,7 +203,11 @@ with tabs[1]:
         if st.button("Regenerate selected dashboard"):
             qid = options[sel]
             sq = load_query(settings.saved_query_dir, qid)
-            res = orch.run(st.session_state["data_session"], sq.question, mode_hint="dashboard")
+            sess = st.session_state["data_session"]
+            if not sess.available_tables():
+                st.error("No tables loaded. Please upload and ingest your .nzf file first.")
+                st.stop()
+            res = orch.run(sess, sq.question, mode_hint="dashboard")
             if not res.ok:
                 st.error(INSUFFICIENT)
             else:

@@ -55,6 +55,16 @@ def build_figure(df: pd.DataFrame, spec: Dict[str, Any]) -> go.Figure:
         color = spec.get("color")
 
         if chart_type in {"bar", "line", "scatter", "area"}:
+            # Infer x/y when the planner omitted them.
+            if not x and len(df.columns) >= 1:
+                x = df.columns[0]
+            if not y:
+                num_cols = [c for c in df.columns if c != x and pd.api.types.is_numeric_dtype(df[c])]
+                if num_cols:
+                    y = num_cols[0]
+                elif len(df.columns) >= 2:
+                    y = df.columns[1]
+
             if not x or not y:
                 raise PlotlyRenderError(f"{chart_type} requires x and y.")
             if x not in df.columns or y not in df.columns:
