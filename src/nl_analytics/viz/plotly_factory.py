@@ -25,7 +25,21 @@ def build_figure(df: pd.DataFrame, spec: Dict[str, Any]) -> go.Figure:
             title = spec.get("title", value_col or "KPI")
             if not value_col or value_col not in df.columns:
                 raise PlotlyRenderError("KPI requires a valid 'value' column.")
-            val = df[value_col].iloc[0] if len(df) else None
+            # If the KPI is based on a grouped dataframe (multiple rows), the caller can request
+            # how to reduce the column to a single KPI value.
+            reduce = (spec.get("reduce") or "first").lower()
+            if not len(df):
+                val = None
+            elif reduce in {"sum", "total"}:
+                val = df[value_col].sum()
+            elif reduce in {"mean", "avg"}:
+                val = df[value_col].mean()
+            elif reduce in {"max"}:
+                val = df[value_col].max()
+            elif reduce in {"min"}:
+                val = df[value_col].min()
+            else:
+                val = df[value_col].iloc[0]
             return go.Figure(go.Indicator(mode="number", value=val, title={"text": str(title)}))
 
         if chart_type == "table":

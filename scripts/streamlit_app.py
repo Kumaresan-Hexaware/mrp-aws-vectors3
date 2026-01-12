@@ -47,6 +47,60 @@ if "data_session" not in st.session_state:
 if "last_plan" not in st.session_state:
     st.session_state["last_plan"] = None
 
+def _ingest_file_path(path: Path, original_name: str | None = None) -> None:
+    """Ingest a file already present on disk into the in-memory DataSession.
+
+    This makes restarts user-friendly: data can be re-hydrated from data/uploads without re-upload.
+    """
+    sess: DataSession = st.session_state["data_session"]
+    name = original_name or path.name
+    table = map_file_to_table(registry, name)
+    if not table:
+        st.warning(f"File '{name}' did not match any registry table patterns.")
+        return
+
+    res = read_nzf(str(path), delimiter=settings.delimiter, fallback_encodings=settings.fallback_encodings, skip_bad_lines=settings.skip_bad_lines)
+    df = standardize_columns(res.df)
+
+    spec = registry.get_table(table)
+    col_types = {c: spec.columns[c].type for c in spec.columns}
+    df = coerce_types(df, col_types)
+
+    sess.register_table(table, df, name)
+
+    # Best-effort: upsert a capped preview into the vector store (idempotent IDs).
+    try:
+        max_rows = min(len(df), 2000)
+        if max_rows > 0:
+            ids, texts, metas = [], [], []
+            preview_df = df.head(max_rows)
+            for i, row in enumerate(preview_df.itertuples(index=False), start=1):
+                row_dict = row._asdict() if hasattr(row, "_asdict") else dict(zip(preview_df.columns, row))
+                parts = [f"{k}={row_dict.get(k)}" for k in list(preview_df.columns)[:50]]
+                text = f"DATA ROW | table={table} | source={name} | " + " | ".join(parts)
+                ids.append(f"data::{table}::{name}::{i}")
+                texts.append(text)
+                metas.append({"kind": "data", "table": table, "source_file": name, "row": i})
+            orch.store.upsert(ids=ids, texts=texts, metadatas=metas)
+    except Exception:
+        # Don't block ingestion; vector store is optional.
+        pass
+
+def _auto_load_previous_uploads() -> int:
+    """Load any .nzf files found under data/uploads into the current session."""
+    upload_dir = Path("data/uploads")
+    if not upload_dir.exists():
+        return 0
+    count = 0
+    for p in sorted(upload_dir.glob("*.nzf")):
+        try:
+            _ingest_file_path(p)
+            count += 1
+        except Exception:
+            # Keep going; we'll show a single warning outside.
+            continue
+    return count
+
 def ingest_uploaded_files(files):
     sess: DataSession = st.session_state["data_session"]
     for f in files:
@@ -55,52 +109,23 @@ def ingest_uploaded_files(files):
         tmp_path = tmp_dir / f.name
         tmp_path.write_bytes(f.getbuffer())
 
-        table = map_file_to_table(registry, f.name)
-        if not table:
-            st.warning(f"File '{f.name}' did not match any registry table patterns.")
-            continue
-
         try:
-            res = read_nzf(str(tmp_path), delimiter=settings.delimiter, fallback_encodings=settings.fallback_encodings, skip_bad_lines=settings.skip_bad_lines)
-            df = standardize_columns(res.df)
-
-            spec = registry.get_table(table)
-            col_types = {c: spec.columns[c].type for c in spec.columns}
-            df = coerce_types(df, col_types)
-
-
-            sess.register_table(table, df, f.name)
-
-            # OPTIONAL: also index a light text representation of the uploaded rows into the vector store.
-            # This is what makes "seeing the file in the vector bucket" possible when using VECTOR_BACKEND=s3vectors.
-            # Keep this capped to avoid cost/latency for large files.
-            try:
-                max_rows = min(len(df), 2000)
-                if max_rows > 0:
-                    ids, texts, metas = [], [], []
-                    preview_df = df.head(max_rows)
-                    for i, row in enumerate(preview_df.itertuples(index=False), start=1):
-                        row_dict = row._asdict() if hasattr(row, "_asdict") else dict(zip(preview_df.columns, row))
-                        # build a compact, LLM-friendly row string
-                        parts = [f"{k}={row_dict.get(k)}" for k in list(preview_df.columns)[:50]]
-                        text = f"DATA ROW | table={table} | source={f.name} | " + " | ".join(parts)
-                        ids.append(f"data::{table}::{f.name}::{i}")
-                        texts.append(text)
-                        metas.append({"kind": "data", "table": table, "source_file": f.name, "row": i})
-
-                    orch.store.upsert(ids=ids, texts=texts, metadatas=metas)
-            except Exception as ve:
-                # Don't block ingestion if vector indexing fails, but surface the full error.
-                st.warning("Loaded data into session, but vector indexing failed. The exception is shown below.")
-                st.error(str(ve))
-                st.code(traceback.format_exc())
-                st.caption("Tip: If this is an S3 Vectors backend, a common cause is embedding dimension mismatch vs index dimension.")
-
-
-            st.success(f"Ingested {f.name} → table '{table}' ({len(df)} rows, encoding {res.encoding_used})")
+            _ingest_file_path(tmp_path, original_name=f.name)
+            st.success(f"Ingested {f.name} (from upload cache)")
         except Exception as e:
             st.error(f"Ingestion failed for {f.name}: {e}")
             st.code(traceback.format_exc())
+
+
+# One-time auto-load from disk on fresh UI session.
+if "auto_loaded_uploads" not in st.session_state:
+    st.session_state["auto_loaded_uploads"] = True
+    try:
+        n = _auto_load_previous_uploads()
+        if n:
+            st.caption(f"Auto-loaded {n} previously uploaded .nzf file(s) from data/uploads")
+    except Exception:
+        st.warning("Auto-load of previous uploads failed. You can re-upload the file(s) to continue.")
 
 st.title("Natural-language Analytics + Dashboards (RAG + ReAct)")
 
@@ -178,8 +203,37 @@ with tabs[1]:
             st.error(INSUFFICIENT)
         else:
             st.info(f"Confidence: {res.confidence:.3f}")
-            if res.figure is not None:
-                st.plotly_chart(res.figure, use_container_width=True)
+            # Support multi-panel dashboards (e.g., KPI + chart).
+            figs = getattr(res, "figures", None) or ([] if res.figure is None else [res.figure])
+            if figs:
+                if len(figs) == 1:
+                    st.plotly_chart(figs[0], use_container_width=True)
+                else:
+                    # If there's at least one KPI, show KPIs in a narrow left column.
+                    kpis = []
+                    others = []
+                    for f in figs:
+                        try:
+                            if getattr(f, "data", None) and len(f.data) and getattr(f.data[0], "type", "") == "indicator":
+                                kpis.append(f)
+                            else:
+                                others.append(f)
+                        except Exception:
+                            others.append(f)
+
+                    if kpis and others:
+                        left, right = st.columns([1, 3])
+                        with left:
+                            for k in kpis:
+                                st.plotly_chart(k, use_container_width=True)
+                        with right:
+                            for o in others:
+                                st.plotly_chart(o, use_container_width=True)
+                    else:
+                        cols = st.columns(min(3, len(figs)))
+                        for i, f in enumerate(figs):
+                            with cols[i % len(cols)]:
+                                st.plotly_chart(f, use_container_width=True)
             else:
                 st.warning("Plotly render failed; showing table fallback.")
                 st.dataframe(res.df, use_container_width=True)

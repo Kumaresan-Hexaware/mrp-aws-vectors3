@@ -52,7 +52,9 @@ tables:
       typical_questions:
         - "Which portfolios are included in a given run?"
     columns:
-      PortfolioID: {type: string}
+      PortfolioID:
+        type: string
+        aliases: ["Portfolio", "Portfolio Id", "Portfolio Identifier"]
       DmrRunID: {type: string}
 
   pvr00400:
@@ -78,12 +80,22 @@ tables:
         - "Group instruments by type/deal/state"
     columns:
       InstrumentID: {type: string}
-      PortfolioID: {type: string}
+      PortfolioID:
+        type: string
+        aliases: ["Portfolio", "Portfolio Id", "Portfolio Identifier"]
       CUSIP: {type: string}
       DealName: {type: string}
       IssueDate: {type: date}
       MaturityDate: {type: date}
-      CurrentUPBAmt: {type: float}
+      CurrentUPBAmt:
+        type: float
+        aliases:
+          - "UPB"
+          - "Total UPB"
+          - "Current UPB"
+          - "Unpaid Principal Balance"
+          - "Current Unpaid Principal Balance"
+          - "Outstanding Principal"
       OriginalAmount: {type: float}
 
   pvr00600:

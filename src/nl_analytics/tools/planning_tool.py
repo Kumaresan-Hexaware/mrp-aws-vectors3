@@ -30,6 +30,7 @@ PLAN_SCHEMA: Dict[str, Any] = {
             "items": {"type": "object", "properties": {"by": {"type": "string"}, "desc": {"type": "boolean"}}},
         },
         "chart": {"type": "object"},
+        "charts": {"type": "array", "items": {"type": "object"}},
     },
 }
 
@@ -46,6 +47,7 @@ class QueryPlan:
     limit: int
     sort: List[Dict[str, Any]] | None = None
     chart: Dict[str, Any] | None = None
+    charts: List[Dict[str, Any]] | None = None
 
 
 def _extract_metric_column(expr: str) -> str | None:
@@ -59,11 +61,30 @@ def _extract_metric_column(expr: str) -> str | None:
 
 
 def _canonicalize_col(col: str, all_cols: set[str], col_map: Dict[str, str]) -> str:
+    def _norm(s: str) -> str:
+        return "".join(ch.lower() for ch in (s or "") if ch.isalnum())
+
     if col in all_cols:
         return col
+
     c = (col or "").strip()
-    if c.lower() in col_map:
-        return col_map[c.lower()]
+    if not c:
+        raise SchemaValidationError(f"Unknown column: {col}")
+
+    # Handle fully-qualified names the LLM may emit, e.g. pvr01000.PortfolioID
+    if "." in c:
+        last = c.split(".")[-1].strip()
+        if last and last in all_cols:
+            return last
+        c = last or c
+
+    key = c.lower()
+    if key in col_map:
+        return col_map[key]
+    nkey = _norm(c)
+    if nkey in col_map:
+        return col_map[nkey]
+
     raise SchemaValidationError(f"Unknown column: {col}")
 
 
@@ -75,6 +96,10 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     plan.setdefault("filters", [])
     plan.setdefault("sort", [])
     plan.setdefault("limit", 5000)
+    # Some planners emit a single 'chart' object; others can emit 'charts' (a list).
+    # We support both and normalize to plan.charts.
+    if "charts" in plan and plan["charts"] is not None and not isinstance(plan["charts"], list):
+        plan["charts"] = [plan["charts"]]
 
     # Required keys (limit is optional)
     for k in ["mode", "tables", "metrics", "dimensions", "filters"]:
@@ -109,7 +134,9 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
 
     needed_tables: List[str] = []
     for col in referenced_cols:
-        col_l = str(col).lower()
+        # Strip any table qualification to make pruning work when the model emits t.col
+        col_tok = str(col).split(".")[-1].strip()
+        col_l = col_tok.lower()
         for t in tables:
             tcols_l = {c.lower() for c in registry.columns_for_table(t)}
             if col_l in tcols_l:
@@ -128,7 +155,19 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     for t in tables:
         all_cols |= set(registry.columns_for_table(t))
 
+    # Column map supports:
+    #   1) exact column names
+    #   2) normalized column keys (remove punctuation/spaces)
+    #   3) business aliases declared in the schema registry
     col_map: Dict[str, str] = {c.lower(): c for c in all_cols}
+    for c in list(all_cols):
+        n = "".join(ch.lower() for ch in c if ch.isalnum())
+        if n:
+            col_map.setdefault(n, c)
+
+    alias_map = registry.column_alias_map_for_tables(tables)
+    for k, v in alias_map.items():
+        col_map.setdefault(str(k).lower(), v)
 
     # Dimensions canonicalization
     dimensions_in = list(plan.get("dimensions") or [])
@@ -179,6 +218,10 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
         limit = 5000
     limit = max(1, min(limit, 200000))
 
+    charts = list(plan.get("charts") or [])
+    if not charts and isinstance(plan.get("chart"), dict) and plan.get("chart"):
+        charts = [plan.get("chart")]
+
     return QueryPlan(
         mode=mode,
         tables=tables,
@@ -188,4 +231,5 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
         limit=limit,
         sort=plan.get("sort"),
         chart=plan.get("chart"),
+        charts=charts or None,
     )

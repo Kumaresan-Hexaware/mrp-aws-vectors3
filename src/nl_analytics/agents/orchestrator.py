@@ -34,6 +34,7 @@ class AgentResult:
     confidence: float = 0.0
     df: Optional[pd.DataFrame] = None
     figure: Any = None
+    figures: Any = None
 
 class AgentOrchestrator:
     def __init__(self, settings: Settings, registry: SchemaRegistry):
@@ -137,7 +138,10 @@ class AgentOrchestrator:
 
         sys = (
             "You are a query planning agent. You must ONLY propose plans using tables/columns that exist in the schema registry. "
-            "Never invent join keys; joins must follow the registry. Output JSON only."
+            "Never invent join keys; joins must follow the registry. "
+            "For dashboards, you may include either a single 'chart' object or a list of 'charts' (e.g., KPI + bar chart). "
+            "Users may refer to columns by business names/aliases (e.g., 'UPB'); map those to real columns from the schema. "
+            "Output JSON only."
         )
         grounding = "\n\n".join([f"[score={c.score:.3f}] {c.text}" for c in retrieval.chunks[: self.settings.rag_top_k]])
         user = f"Mode hint: {mode_hint}\n\nRelevant schema:\n{grounding}\n\nQuestion: {question}"
@@ -160,39 +164,67 @@ class AgentOrchestrator:
             return AgentResult(ok=False, message=INSUFFICIENT, plan=raw_plan, confidence=confidence)
 
         if plan.mode == "dashboard":
-            # Build/repair chart spec so Plotly rendering doesn't fail when the model omits x/y.
-            spec = dict(plan.chart or {})
-            spec_type = (spec.get("type") or "bar").lower()
-            spec["type"] = spec_type
+            def _repair_spec(spec_in: Dict[str, Any]) -> Dict[str, Any]:
+                """Fill in missing x/y/names/values so plotly_factory can render reliably."""
+                spec = dict(spec_in or {})
+                spec_type = (spec.get("type") or "bar").lower()
+                spec["type"] = spec_type
 
-            if spec_type in {"bar", "line", "scatter", "area"}:
-                if not spec.get("x"):
-                    spec["x"] = plan.dimensions[0] if plan.dimensions else (df.columns[0] if len(df.columns) else None)
+                if spec_type in {"bar", "line", "scatter", "area"}:
+                    if not spec.get("x"):
+                        spec["x"] = plan.dimensions[0] if plan.dimensions else (df.columns[0] if len(df.columns) else None)
+                    if not spec.get("y"):
+                        y0 = plan.metrics[0]["name"] if (plan.metrics and isinstance(plan.metrics[0], dict)) else None
+                        if y0 and y0 in df.columns:
+                            spec["y"] = y0
+                        else:
+                            xcol = spec.get("x")
+                            numeric_cols = [c for c in df.columns if c != xcol and pd.api.types.is_numeric_dtype(df[c])]
+                            if numeric_cols:
+                                spec["y"] = numeric_cols[0]
+                            elif len(df.columns) > 1:
+                                spec["y"] = df.columns[1]
 
-                if not spec.get("y"):
-                    y0 = plan.metrics[0]["name"] if (plan.metrics and isinstance(plan.metrics[0], dict)) else None
-                    if y0 and y0 in df.columns:
-                        spec["y"] = y0
-                    else:
-                        xcol = spec.get("x")
-                        numeric_cols = [c for c in df.columns if c != xcol and pd.api.types.is_numeric_dtype(df[c])]
-                        if numeric_cols:
-                            spec["y"] = numeric_cols[0]
-                        elif len(df.columns) > 1:
-                            spec["y"] = df.columns[1]
+                if spec_type == "pie":
+                    if not spec.get("names") and plan.dimensions:
+                        spec["names"] = plan.dimensions[0]
+                    if not spec.get("values") and plan.metrics:
+                        y0 = plan.metrics[0]["name"]
+                        if y0 in df.columns:
+                            spec["values"] = y0
 
-            if spec_type == "pie":
-                if not spec.get("names") and plan.dimensions:
-                    spec["names"] = plan.dimensions[0]
-                if not spec.get("values") and plan.metrics:
-                    y0 = plan.metrics[0]["name"]
-                    if y0 in df.columns:
-                        spec["values"] = y0
+                # KPI: by default, use the first metric column and compute total across rows.
+                if spec_type == "kpi":
+                    if not spec.get("value") and plan.metrics:
+                        cand = plan.metrics[0].get("name")
+                        if cand in df.columns:
+                            spec["value"] = cand
+                    spec.setdefault("reduce", "sum")
 
+                return spec
+
+            # Normalize to a list of chart specs.
+            charts = list(plan.charts or [])
+            if not charts and plan.chart:
+                charts = [plan.chart]
+            if not charts:
+                charts = [{"type": "bar"}]
+
+            # If the user explicitly asked for a KPI, ensure a KPI panel exists even if the model omitted it.
+            ql = question.lower()
+            if "kpi" in ql:
+                has_kpi = any(str(c.get("type", "")).lower() == "kpi" for c in charts if isinstance(c, dict))
+                if not has_kpi:
+                    charts = ([{"type": "kpi"}] + charts)
+
+            figures = []
             try:
-                fig = build_figure(df, spec)
-                return AgentResult(ok=True, message="OK", plan=raw_plan, confidence=confidence, df=df, figure=fig)
+                for c in charts:
+                    fig = build_figure(df, _repair_spec(dict(c or {})))
+                    figures.append(fig)
+                primary = figures[0] if figures else None
+                return AgentResult(ok=True, message="OK", plan=raw_plan, confidence=confidence, df=df, figure=primary, figures=figures)
             except PlotlyRenderError:
-                return AgentResult(ok=True, message="OK (fallback table)", plan=raw_plan, confidence=confidence, df=df, figure=None)
+                return AgentResult(ok=True, message="OK (fallback table)", plan=raw_plan, confidence=confidence, df=df, figure=None, figures=None)
 
         return AgentResult(ok=True, message="OK", plan=raw_plan, confidence=confidence, df=df)

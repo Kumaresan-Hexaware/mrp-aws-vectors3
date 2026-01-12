@@ -1,0 +1,47 @@
+Show total CurrentUPBAmt grouped by PortfolioID, sort descending
+Create a dashboard of total CurrentUPBAmt by PortfolioID (bar chart), sorted descending
+
+Suggested queries that should reliably work
+
+Ad-hoc report queries (table output)
+
+Sum of UPB by Portfolio
+“Show total CurrentUPBAmt grouped by PortfolioID, sort descending.”
+
+Top instruments by UPB
+
+“List top 25 InstrumentID by CurrentUPBAmt with PortfolioID, GuarantorTypeCode, InstrumentTypeCode.”
+
+Average price + UPB by guarantor
+
+“For each GuarantorTypeCode, show SUM(CurrentUPBAmt) and AVG(TradePrice).”
+
+Factor buckets
+
+“Bucket Factor into ranges (0–0.2, 0.2–0.4, …) and show count of instruments and sum of CurrentUPBAmt per bucket.”
+
+Vintage analysis
+
+“Show SUM(CurrentUPBAmt) and COUNT(InstrumentID) by VintageYear.”
+
+Dashboard queries (charts + KPIs)
+
+These map nicely to bar/pie/scatter/histogram widgets:
+
+Bar chart
+
+“Create a dashboard with Total UPB by PortfolioID (bar chart) and a KPI for total UPB.”
+
+Pie / donut
+
+“Create a dashboard showing UPB share by GuarantorTypeCode (pie chart) and instrument count by guarantor.”
+
+Scatter
+
+“Scatter plot of TradePrice vs CurrentUPBAmt, colored by InstrumentTypeCode.”
+
+Histogram
+
+“Histogram of CurrentUPBAmt distribution, plus top 10 portfolios by UPB.”
+Time-based (if your dashboard supports date grouping)
+“Show monthly total CurrentUPBAmt by DeliveryDate (line chart) and a table of top 20 instruments.”

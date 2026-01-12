@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 from pathlib import Path
 import yaml
@@ -14,6 +14,7 @@ class ColumnSpec:
     name: str
     type: str
     description: str = ""
+    aliases: List[str] = field(default_factory=list)
 
 @dataclass(frozen=True)
 class TableSpec:
@@ -61,10 +62,15 @@ class SchemaRegistry:
         for tname, tval in (raw.get("tables") or {}).items():
             cols = {}
             for cname, cval in (tval.get("columns") or {}).items():
+                aliases = cval.get("aliases", [])
+                if isinstance(aliases, str):
+                    aliases = [aliases]
+                aliases = [str(a) for a in (aliases or []) if str(a).strip()]
                 cols[cname] = ColumnSpec(
                     name=cname,
                     type=str(cval.get("type", "string")),
                     description=str(cval.get("description", "")),
+                    aliases=aliases,
                 )
             tables[tname] = TableSpec(
                 name=tname,
@@ -112,6 +118,31 @@ class SchemaRegistry:
     def columns_for_table(self, table: str) -> List[str]:
         self._ensure_table(table)
         return sorted(self.tables[table].columns.keys())
+
+    def column_alias_map_for_tables(self, tables: List[str]) -> Dict[str, str]:
+        """Return a case-insensitive map of alias -> canonical column name across selected tables."""
+        alias_map: Dict[str, str] = {}
+
+        def _norm(s: str) -> str:
+            return "".join(ch.lower() for ch in (s or "") if ch.isalnum())
+
+        for t in tables:
+            self._ensure_table(t)
+            for cname, cspec in self.tables[t].columns.items():
+                # Always include the canonical column itself as a lookup key.
+                for k in {cname.lower(), _norm(cname)}:
+                    if k:
+                        alias_map.setdefault(k, cname)
+
+                for a in (cspec.aliases or []):
+                    a = str(a).strip()
+                    if not a:
+                        continue
+                    for k in {a.lower(), _norm(a)}:
+                        if k:
+                            alias_map.setdefault(k, cname)
+
+        return alias_map
 
     def get_table(self, table: str) -> TableSpec:
         self._ensure_table(table)

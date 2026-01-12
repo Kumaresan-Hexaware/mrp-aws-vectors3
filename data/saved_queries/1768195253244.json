@@ -1,0 +1,32 @@
+{
+  "id": "1768195253244",
+  "created_at": 1768195253.244115,
+  "mode": "dashboard",
+  "question": "Create a dashboard of total CurrentUPBAmt by PortfolioID (bar chart), sorted descending",
+  "plan": {
+    "mode": "dashboard",
+    "tables": [
+      "pvr00400"
+    ],
+    "metrics": [
+      {
+        "name": "total_CurrentUPBAmt",
+        "expr": "SUM(CurrentUPBAmt)"
+      }
+    ],
+    "dimensions": [
+      "PortfolioID"
+    ],
+    "filters": [],
+    "sort": [
+      {
+        "by": "total_CurrentUPBAmt",
+        "desc": true
+      }
+    ],
+    "chart": {
+      "type": "bar"
+    },
+    "limit": 5000
+  }
+}

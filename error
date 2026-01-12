@@ -1,27 +1,37 @@
 
-The below 2 Queries working now
+The below Queries working fine now. production result
 Show total CurrentUPBAmt grouped by PortfolioID, sort descending
 Create a dashboard of total CurrentUPBAmt by PortfolioID (bar chart), sorted descending
+Create a dashboard with Total UPB by PortfolioID (bar chart) and a KPI for total UPB .
+
 
 But the below query is not working getting error
 
 Question
-Create a dashboard with Total UPB by PortfolioID (bar chart) and a KPI for total UPB . and also User will query the coloum's possible business name not the actual coloum name
+
+Create a dashboard showing UPB share by GuarantorTypeCode (pie chart) and instrument count by guarantor
+
 
 Error
-2026-01-12 00:23:23,878 | INFO | tools.retrieval | Retrieved chunks
-2026-01-12 00:23:23,879 | INFO | agents.orchestrator | Confidence computed
-2026-01-12 00:23:30,375 | INFO | bedrock.client | Claude text head: 'Here is a JSON object that matches the required schema for the query planning agent:\n\n{\n  "mode": "dashboard",\n  "tables": [\n    "pvr00400",\n    "pvr01000"\n
-  ],\n  "metrics": [\n    {\n      "name": "total_upb",\n      "expr": "SUM(pvr00400.CurrentUPBAmt)"\n    }\n  ],\n  "dimensions": [\n    "pvr01000.Port'
-2026-01-12 00:23:30,377 | WARNING | agents.orchestrator | Planning/validation failed: Unknown column: pvr01000.PortfolioID
-Traceback (most recent call last):
-  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 149, in run
-    plan = validate_plan(self.registry, raw_plan)
+
+   dimensions.append(_canonicalize_col(str(d), all_cols, col_map))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 88, in _canonicalize_col
+    raise SchemaValidationError(f"Unknown column: {col}")
+nl_analytics.exceptions.errors.SchemaValidationError: Unknown column: YEAR(IssueDate) AS VintageYear
+2026-01-12 01:17:42.581 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-12 01:17:42.698 Please replace `use_container_width` with `width`.
+
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 137, in validate_plan
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 176, in validate_plan
     dimensions.append(_canonicalize_col(str(d), all_cols, col_map))
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 67, in _canonicalize_col
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 88, in _canonicalize_col
     raise SchemaValidationError(f"Unknown column: {col}")
-nl_analytics.exceptions.errors.SchemaValidationError: Unknown column: pvr01000.PortfolioID
+nl_analytics.exceptions.errors.SchemaValidationError: Unknown column: GuarantorTypeCode
 
+user can able to query based out of all avalilable coloums in the files using business context name on those coloums 
