@@ -33,26 +33,125 @@ def build_join_sql(registry: SchemaRegistry, plan_tables: List[str]) -> Tuple[st
         joined.add(rt_alias)
     return sql, join_path
 
-def _metric_sql(metrics: List[Dict[str, str]]) -> List[str]:
+def _strip_expr_alias(expr: str) -> str:
+    # Remove any accidental "AS alias" the planner might include inside expr.
+    return re.sub(r"(?i)\s+as\s+[A-Za-z_][A-Za-z0-9_]*\s*$", "", (expr or "").strip())
+
+
+def _quote_cols_in_expr(expr: str, allowed_cols: List[str]) -> str:
+    """Quote column identifiers within a SQL expression, avoiding quoted string literals.
+
+    This lets us support planner-generated expressions like:
+      SUM(CASE WHEN PaymentStructureTypeCode='PAY' THEN 1 ELSE 0 END)
+      ROUND(100.0 * SUM(...) / NULLIF(COUNT(*),0), 2)
+
+    while still preventing the executor from incorrectly treating the whole expression as a single identifier.
+    """
+    if not expr:
+        return ""
+
+    # Strip any table qualification (t.col). Safe: does not affect numeric literals like 100.0
+    expr = re.sub(r"\b[A-Za-z_][A-Za-z0-9_]*\.", "", expr)
+
+    # Safety: prohibit multi-statement / comments
+    low = expr.lower()
+    if ";" in low or "--" in low or "/*" in low or "*/" in low:
+        raise AgentExecutionError("Unsafe tokens in metric expression")
+
+    cols_sorted = sorted(set(allowed_cols), key=len, reverse=True)
+
+    out = []
+    in_single = False
+    in_double = False
+    buf = ""
+    for i, ch in enumerate(expr):
+        if ch == "'" and not in_double:
+            # handle escaped ''
+            if in_single and i + 1 < len(expr) and expr[i + 1] == "'":
+                buf += "''"
+                continue
+            # flush current buffer segment with replacements
+            if buf:
+                seg = buf
+                for c in cols_sorted:
+                    seg = re.sub(rf"\b{re.escape(c)}\b", _sql_ident(c), seg)
+                out.append(seg)
+                buf = ""
+            out.append("'")
+            in_single = not in_single
+            continue
+        if ch == '"' and not in_single:
+            if buf:
+                seg = buf
+                for c in cols_sorted:
+                    seg = re.sub(rf"\b{re.escape(c)}\b", _sql_ident(c), seg)
+                out.append(seg)
+                buf = ""
+            out.append('"')
+            in_double = not in_double
+            continue
+        buf += ch
+    if buf:
+        seg = buf
+        for c in cols_sorted:
+            seg = re.sub(rf"\b{re.escape(c)}\b", _sql_ident(c), seg)
+        out.append(seg)
+    return "".join(out)
+
+
+def _metric_sql(metrics: List[Dict[str, str]], allowed_cols: List[str]) -> List[str]:
     out = []
     for m in metrics:
         name = m["name"]
-        expr = m["expr"].strip()
-        agg = expr.split("(", 1)[0].strip()
-        col = expr.split("(", 1)[1].rstrip(")").strip()
-        agg_l = agg.lower()
+        expr = _strip_expr_alias(m["expr"])
+        # Normalize whitespace from LLM formatting.
+        expr = re.sub(r"\s+", " ", expr).strip()
 
-        if col == "*":
-            out.append(f"{agg.upper()}(*) AS {_sql_ident(name)}")
+        # Repair the common case where an identifier is split by whitespace under DISTINCT,
+        # e.g., COUNT(DISTINCT Instrument ID) -> COUNT(DISTINCT InstrumentID)
+        if re.search(r"(?i)\bdistinct\b", expr):
+            m_dist = re.match(
+                r"(?is)^(sum|avg|min|max|count)\s*\(\s*distinct\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$",
+                expr,
+            )
+            if m_dist:
+                combined = f"{m_dist.group(2)}{m_dist.group(3)}"
+                if combined in set(allowed_cols):
+                    expr = f"{m_dist.group(1)}(DISTINCT {combined})"
+
+        # Fast path: simple AGG(col) and AGG(*) patterns
+        m_simple = re.match(
+            r"(?is)^\s*(sum|avg|min|max|count)\s*\(\s*(distinct\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$",
+            expr,
+        )
+        if re.match(r"(?is)^\s*count\s*\(\s*\*\s*\)\s*$", expr):
+            out.append(f"COUNT(*) AS {_sql_ident(name)}")
             continue
 
+        if not m_simple:
+            # Complex expression (CASE WHEN, ROUND wrapper, arithmetic, etc.).
+            expr_sql = _quote_cols_in_expr(expr, allowed_cols)
+            out.append(f"{expr_sql} AS {_sql_ident(name)}")
+            continue
+
+        agg = m_simple.group(1)
+        distinct_kw = m_simple.group(2) or ""
+        col_inner = m_simple.group(3)
+        agg_l = agg.lower()
+        distinct = bool(distinct_kw)
+
         # SUM/AVG should be numeric-safe because many CSV/NZF fields load as strings.
-        if agg_l in {"sum", "avg"}:
-            out.append(
-                f"{agg.upper()}(TRY_CAST({_sql_ident(col)} AS DOUBLE)) AS {_sql_ident(name)}"
-            )
+        col_sql = _sql_ident(col_inner)
+        if distinct:
+            if agg_l in {"sum", "avg"}:
+                col_sql = f"DISTINCT TRY_CAST({col_sql} AS DOUBLE)"
+            else:
+                col_sql = f"DISTINCT {col_sql}"
         else:
-            out.append(f"{agg.upper()}({_sql_ident(col)}) AS {_sql_ident(name)}")
+            if agg_l in {"sum", "avg"}:
+                col_sql = f"TRY_CAST({col_sql} AS DOUBLE)"
+
+        out.append(f"{agg.upper()}({col_sql}) AS {_sql_ident(name)}")
     return out
 
 def _filters_sql(filters: List[str]) -> str:
@@ -98,7 +197,16 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
         select_cols = []
         for d in plan.dimensions:
             select_cols.append(_sql_ident(d))
-        select_cols.extend(_metric_sql(plan.metrics))
+        # Build a set of allowed columns across the selected tables for safe quoting inside expressions.
+        allowed_cols: List[str] = []
+        for t in tables:
+            try:
+                allowed_cols.extend(list(registry.columns_for_table(t)))
+            except Exception:
+                # Fallback to the registered dataframe columns
+                allowed_cols.extend(list(session.get_table(t).columns))
+
+        select_cols.extend(_metric_sql(plan.metrics, allowed_cols))
 
         join_sql, _ = build_join_sql(registry, tables)
 

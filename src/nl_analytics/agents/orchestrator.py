@@ -203,6 +203,13 @@ class AgentOrchestrator:
         if not question:
             return AgentResult(ok=False, message=INSUFFICIENT, confidence=0.0)
 
+        # Log the user query once up-front so failures/retries can be tied back
+        # to the originating natural-language request.
+        log.info(
+            "User query received",
+            extra={"question": question, "mode_hint": mode_hint},
+        )
+
         # ReAct retry loop: self-correct common failures (schema mismatch, empty results, execution errors)
         MAX_ITERS = 3
         last_raw_plan: Optional[Dict[str, Any]] = None
@@ -380,7 +387,29 @@ class AgentOrchestrator:
                     figures = []
                     try:
                         for c in charts:
-                            fig = build_figure(df, _repair_spec(dict(c or {})))
+                            spec = _repair_spec(dict(c or {}))
+                            df_use = df
+
+                            # Special handling: pie charts without a categorical dimension.
+                            # If the planner returns multiple metric columns and a single-row df,
+                            # we can pivot metrics into (Category, Value) for a valid pie.
+                            if (spec.get("type") or "").lower() == "pie":
+                                if (not spec.get("names") or not spec.get("values")) and not plan.dimensions:
+                                    metric_cols = [
+                                        m.get("name") for m in (plan.metrics or [])
+                                        if isinstance(m, dict) and m.get("name") in df.columns
+                                    ]
+                                    if len(metric_cols) >= 2 and len(df) == 1:
+                                        df_use = pd.DataFrame(
+                                            {
+                                                "Category": metric_cols,
+                                                "Value": [df.iloc[0][mc] for mc in metric_cols],
+                                            }
+                                        )
+                                        spec["names"] = "Category"
+                                        spec["values"] = "Value"
+
+                            fig = build_figure(df_use, spec)
                             figures.append(fig)
                         primary = figures[0] if figures else None
                         return AgentResult(
@@ -414,8 +443,16 @@ class AgentOrchestrator:
                     "If you need a derived field, compute it using supported functions or omit it."
                 )
                 log.warning(
-                    "Planning/validation failed; retrying",
-                    extra={"attempt": attempt, "max_attempts": MAX_ITERS, "error": str(e)},
+                    "Planning/validation failed; retrying | question=%s | error=%s",
+                    question,
+                    str(e),
+                    extra={
+                        "question": question,
+                        "mode_hint": mode_hint,
+                        "attempt": attempt,
+                        "max_attempts": MAX_ITERS,
+                        "error": str(e),
+                    },
                     exc_info=True,
                 )
                 continue
@@ -426,8 +463,16 @@ class AgentOrchestrator:
                     "Use only the provided schema context and avoid uncommon/ambiguous business aliases."
                 )
                 log.warning(
-                    "Retrieval failed; retrying",
-                    extra={"attempt": attempt, "max_attempts": MAX_ITERS, "error": str(e)},
+                    "Retrieval failed; retrying | question=%s | error=%s",
+                    question,
+                    str(e),
+                    extra={
+                        "question": question,
+                        "mode_hint": mode_hint,
+                        "attempt": attempt,
+                        "max_attempts": MAX_ITERS,
+                        "error": str(e),
+                    },
                     exc_info=True,
                 )
                 continue
@@ -439,8 +484,16 @@ class AgentOrchestrator:
                     "Generate a simpler plan: use one table, one metric, one dimension, no joins, no complex expressions."
                 )
                 log.warning(
-                    "Attempt failed; retrying",
-                    extra={"attempt": attempt, "max_attempts": MAX_ITERS, "error": str(e)},
+                    "Attempt failed; retrying | question=%s | error=%s",
+                    question,
+                    str(e),
+                    extra={
+                        "question": question,
+                        "mode_hint": mode_hint,
+                        "attempt": attempt,
+                        "max_attempts": MAX_ITERS,
+                        "error": str(e),
+                    },
                     exc_info=True,
                 )
                 continue
