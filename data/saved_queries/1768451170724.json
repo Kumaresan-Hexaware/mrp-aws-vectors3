@@ -1,0 +1,34 @@
+{
+  "id": "1768451170724",
+  "created_at": 1768451170.724409,
+  "mode": "dashboard",
+  "question": "Create a dashboard showing coupon distribution (histogram) and a KPI for max coupon.",
+  "plan": {
+    "mode": "dashboard",
+    "tables": [
+      "pvr01500"
+    ],
+    "metrics": [
+      {
+        "name": "Max Coupon",
+        "expr": "MAX(HistoricalVarRateCouponPercent)"
+      }
+    ],
+    "dimensions": [
+      "HistoricalVarRateCouponPercent"
+    ],
+    "filters": [],
+    "charts": [
+      {
+        "type": "histogram",
+        "x": "HistoricalVarRateCouponPercent"
+      },
+      {
+        "type": "kpi",
+        "value": "Max Coupon"
+      }
+    ],
+    "sort": [],
+    "limit": 5000
+  }
+}

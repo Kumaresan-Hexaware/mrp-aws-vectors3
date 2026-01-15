@@ -695,6 +695,7 @@ def _reports_view() -> None:
             st.error(INSUFFICIENT)
         else:
             st.success("Report generated.")
+            st.markdown(f"**Confidence:** `{res.confidence:.3f}`")
             st.markdown("#### Results")
             st.dataframe(res.df, width='stretch')
 

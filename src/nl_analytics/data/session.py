@@ -21,7 +21,16 @@ class DataSession:
     """
 
     registry: SchemaRegistry
+    # Aggregated tables (logical table -> combined dataframe)
     tables: Dict[str, pd.DataFrame] = field(default_factory=dict)
+
+    # Per-source storage to avoid accidental duplication when the same file is ingested
+    # multiple times (e.g., auto-load on startup + manual ingest, or repeated uploads).
+    # This preserves the original behavior of "multiple files per logical table" while
+    # making ingestion idempotent per filename.
+    file_tables: Dict[str, Dict[str, pd.DataFrame]] = field(default_factory=dict)
+
+    # Convenience list of sources per logical table (kept for UI display).
     source_files: Dict[str, List[str]] = field(default_factory=dict)
 
     def canonical_table_name(self, name: str) -> str:
@@ -39,14 +48,23 @@ class DataSession:
     def register_table(self, table_name: str, df: pd.DataFrame, source_filename: str) -> None:
         t = self.canonical_table_name(table_name)
 
-        if t in self.tables:
-            self.tables[t] = pd.concat([self.tables[t], df], ignore_index=True)
-            self.source_files.setdefault(t, []).append(source_filename)
-            log.info("Appended table", extra={"table": t, "file": source_filename, "rows_total": len(self.tables[t])})
-        else:
-            self.tables[t] = df
-            self.source_files[t] = [source_filename]
-            log.info("Registered table", extra={"table": t, "file": source_filename, "rows": len(df)})
+        # Store/overwrite by source filename (idempotent per filename).
+        self.file_tables.setdefault(t, {})[source_filename] = df
+        self.source_files[t] = list(self.file_tables[t].keys())
+
+        # Rebuild the aggregated table.
+        parts = list(self.file_tables[t].values())
+        self.tables[t] = pd.concat(parts, ignore_index=True) if len(parts) > 1 else parts[0]
+
+        log.info(
+            "Registered table (per-file)",
+            extra={
+                "table": t,
+                "file": source_filename,
+                "files_for_table": len(self.source_files.get(t, [])),
+                "rows_total": len(self.tables[t]),
+            },
+        )
 
     def has_table(self, table_name: str) -> bool:
         t = self.canonical_table_name(table_name)
@@ -61,4 +79,5 @@ class DataSession:
 
     def clear(self) -> None:
         self.tables.clear()
+        self.file_tables.clear()
         self.source_files.clear()

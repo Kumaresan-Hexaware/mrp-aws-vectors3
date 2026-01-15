@@ -1,0 +1,58 @@
+{
+  "id": "1768451282101",
+  "created_at": 1768451282.1016786,
+  "mode": "dashboard",
+  "question": "Create a dashboard with a pie chart of PAY vs RECEIVE share and a table of top 10 instruments by coupon.",
+  "plan": {
+    "mode": "dashboard",
+    "tables": [
+      "pvr01500"
+    ],
+    "metrics": [
+      {
+        "name": "Coupon Percent",
+        "expr": "AVG(HistoricalVarRateCouponPercent)"
+      }
+    ],
+    "dimensions": [
+      "PaymentStructureTypeCode",
+      "InstrumentID"
+    ],
+    "filters": [],
+    "limit": 10,
+    "sort": [
+      {
+        "by": "Coupon Percent",
+        "desc": true
+      }
+    ],
+    "charts": [
+      {
+        "type": "pie",
+        "title": "Payment Structure Type Share",
+        "dimensions": [
+          "PaymentStructureTypeCode"
+        ],
+        "metrics": [
+          {
+            "name": "Count",
+            "expr": "COUNT(*)"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Top Instruments by Coupon",
+        "dimensions": [
+          "InstrumentID"
+        ],
+        "metrics": [
+          {
+            "name": "Coupon Percent",
+            "expr": "AVG(HistoricalVarRateCouponPercent)"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -57,6 +57,11 @@ def _extract_metric_column(expr: str) -> str | None:
     inside = expr.split("(", 1)[1].rstrip(")").strip()
     if not inside or inside == "*":
         return None
+    # Support COUNT(DISTINCT col) (used for pruning tables, not for SQL construction)
+    if inside.lower().startswith("distinct "):
+        parts = inside.split(None, 1)
+        if len(parts) == 2:
+            inside = parts[1].strip()
     return inside
 
 
@@ -193,9 +198,21 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
         if agg not in ALLOWED_AGGS:
             raise SchemaValidationError(f"Unsupported aggregation: {agg_raw}")
 
-        if col_raw != "*":
-            col = _canonicalize_col(col_raw, all_cols, col_map)
-            expr = f"{agg}({col})"
+        distinct = False
+        col_inner = col_raw
+        # Support COUNT(DISTINCT col)
+        if isinstance(col_inner, str) and col_inner.lower().startswith("distinct "):
+            distinct = True
+            col_inner = col_inner.split(None, 1)[1].strip() if len(col_inner.split(None, 1)) == 2 else ""
+
+        if col_inner != "*":
+            col = _canonicalize_col(col_inner, all_cols, col_map)
+            if distinct:
+                # Only COUNT(DISTINCT ..) is guaranteed to be supported by our executor.
+                # We still let other aggs through, but DISTINCT will only be respected for COUNT.
+                expr = f"{agg}(DISTINCT {col})"
+            else:
+                expr = f"{agg}({col})"
         else:
             expr = f"{agg}(*)"
 
