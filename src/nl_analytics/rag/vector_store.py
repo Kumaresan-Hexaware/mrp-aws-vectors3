@@ -61,6 +61,15 @@ class ChromaVectorStore:
         except Exception as e:
             log.exception("Chroma query failed")
             raise RetrievalError("Vector query failed") from e
+    def has_ids(self, ids: List[str]) -> List[bool]:
+        """Best-effort existence check without embedding any text."""
+        try:
+            res = self.collection.get(ids=ids, include=[])
+            present = set(res.get("ids") or [])
+            return [i in present for i in ids]
+        except Exception:
+            return [False for _ in ids]
+
 
 class PgVectorStore:
     def __init__(self, *args, **kwargs):
@@ -205,6 +214,11 @@ class S3VectorStore:
         self._persist_local()
         self._upload()
         log.info("Upserted S3 vector records", extra={"count": len(ids)})
+
+    def has_ids(self, ids: List[str]) -> List[bool]:
+        self._load(force=False)
+        return [rid in self._records for rid in ids]
+
 
     def query(self, query_text: str, top_k: int) -> List[RetrievedChunk]:
         self._load(force=False)

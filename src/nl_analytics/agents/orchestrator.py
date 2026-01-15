@@ -2,6 +2,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 import pandas as pd
+import os
+import time
+import json
+import hashlib
+from pathlib import Path
 
 from nl_analytics.config.settings import Settings
 from nl_analytics.schema.registry import SchemaRegistry
@@ -95,10 +100,76 @@ class AgentOrchestrator:
         else:
             raise NotImplementedError(f"VECTOR_BACKEND not supported: {backend}")
 
-        self._ensure_schema_index()
+        self._ensure_schema_index_if_missing()
 
-    def _ensure_schema_index(self) -> None:
+    def _schema_state_path(self) -> Path:
+        p = Path("data") / ".cache"
+        p.mkdir(parents=True, exist_ok=True)
+        return p / "schema_index_state.json"
+
+    def _schema_fingerprint(self, schema_ctx) -> str:
+        payload = {"tables": schema_ctx.tables, "joins": schema_ctx.joins}
+        raw = json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
+        return hashlib.sha256(raw).hexdigest()
+
+    def _ensure_schema_index_if_missing(self) -> None:
+        """Ensure schema chunks exist in the vector store without re-embedding on every startup.
+
+        Uses a local fingerprint file and, when supported, a cheap sentinel lookup in the vector store.
+        Set FORCE_SCHEMA_REINDEX=true to force schema re-embedding/upsert.
+        """
         schema_ctx = build_schema_context(self.registry)
+        fp = self._schema_fingerprint(schema_ctx)
+
+        force = str(os.environ.get("FORCE_SCHEMA_REINDEX", "")).strip().lower() in ("1", "true", "yes", "y")
+        if force:
+            self._upsert_schema_index(schema_ctx)
+            self._write_schema_state(fp)
+            return
+
+        state_ok = self._read_schema_state(fp)
+        store_ok = self._schema_sentinel_exists(schema_ctx)
+
+        if state_ok and (store_ok is None or store_ok):
+            log.info("Schema index present; skipping schema upsert", extra={"fingerprint": fp})
+            return
+
+        self._upsert_schema_index(schema_ctx)
+        self._write_schema_state(fp)
+
+    def _read_schema_state(self, fingerprint: str) -> bool:
+        p = self._schema_state_path()
+        if not p.exists():
+            return False
+        try:
+            state = json.loads(p.read_text(encoding="utf-8"))
+            return bool(state and state.get("fingerprint") == fingerprint)
+        except Exception:
+            return False
+
+    def _write_schema_state(self, fingerprint: str) -> None:
+        try:
+            self._schema_state_path().write_text(
+                json.dumps({"fingerprint": fingerprint, "updated_at": time.time()}),
+                encoding="utf-8",
+            )
+        except Exception:
+            # Best-effort only
+            pass
+
+    def _schema_sentinel_exists(self, schema_ctx) -> Optional[bool]:
+        """Return True/False if we can cheaply detect a schema record in the store; else None."""
+        if not schema_ctx.tables:
+            return None
+        sentinel_id = f"table::{next(iter(schema_ctx.tables.keys()))}"
+        if hasattr(self.store, "has_ids"):
+            try:
+                return bool(getattr(self.store, "has_ids")([sentinel_id])[0])
+            except Exception:
+                return None
+        return None
+
+    def _upsert_schema_index(self, schema_ctx) -> None:
         docs, metas, ids = [], [], []
 
         for tname, t in schema_ctx.tables.items():
@@ -110,7 +181,427 @@ class AgentOrchestrator:
             ids.append(f"table::{tname}")
 
         for i, j in enumerate(schema_ctx.joins):
-            text = f"JOIN RULE: {j['left_table']} -> {j['right_table']} ON {j['left_keys']} = {j['right_keys']} TYPE {j['join_type']}"
+            text = (
+                f"JOIN RULE: {j['left_table']} -> {j['right_table']} "
+                f"ON {j['left_keys']} = {j['right_keys']} TYPE {j['join_type']}"
+            )
+            docs.append(text)
+            metas.append({"kind": "join", "left": j["left_table"], "right": j["right_table"]})
+            ids.append(f"join::{i}")
+
+        self.store.upsert(ids=ids, texts=docs, metadatas=metas)
+    def run(self, session: DataSession, question: str, mode_hint: str) -> AgentResult:
+        """Run the agent in a lightweight ReAct loop (Reason → Act → Observe → retry).
+
+        This preserves existing business logic/tools:
+        - RAG retrieval via vector store
+        - LLM planning (JSON) + registry validation
+        - deterministic execution via execute_plan()
+        - Plotly rendering via build_figure()
+        """
+        question = (question or "").strip()
+        if not question:
+            return AgentResult(ok=False, message=INSUFFICIENT, confidence=0.0)
+
+        # ReAct retry loop: self-correct common failures (schema mismatch, empty results, execution errors)
+        MAX_ITERS = 3
+        last_raw_plan: Optional[Dict[str, Any]] = None
+        last_confidence: float = 0.0
+        feedback: str = ""
+
+        for attempt in range(1, MAX_ITERS + 1):
+            try:
+                # --- ACT: Retrieve relevant schema chunks (RAG) ---
+                retrieval = retrieve_schema_chunks(self.store, question, top_k=self.settings.rag_top_k)
+
+                # --- OBSERVE: confidence gate (same as before) ---
+                data_avail = 1.0 if session.tables else 0.0
+                confidence = float(retrieval.confidence * data_avail)
+                last_confidence = confidence
+
+                log.info(
+                    "Confidence computed",
+                    extra={"confidence": round(confidence, 4), "attempt": attempt, "max_attempts": MAX_ITERS},
+                )
+
+                if self.settings.refuse_below_confidence and confidence < self.settings.agent_min_confidence:
+                    log.info(
+                        "Refused due to low confidence",
+                        extra={"confidence": confidence, "attempt": attempt, "max_attempts": MAX_ITERS},
+                    )
+                    return AgentResult(ok=False, message=INSUFFICIENT, confidence=confidence)
+
+                # --- Build grounded prompt for planner ---
+                sys = (
+                    "You are a query planning agent. You must ONLY propose plans using tables/columns that exist in the schema registry. "
+                    "Never invent join keys; joins must follow the registry. "
+                    "For dashboards, you may include either a single 'chart' object or a list of 'charts' (e.g., KPI + bar chart). "
+                    "Users may refer to columns by business names/aliases (e.g., 'UPB'); map those to real columns from the schema. "
+                    "Output JSON only."
+                )
+                grounding = "\n\n".join(
+                    [f"[score={c.score:.3f}] {c.text}" for c in retrieval.chunks[: self.settings.rag_top_k]]
+                )
+
+                retry_note = ""
+                if feedback:
+                    retry_note = (
+                        "\n\nPrevious attempt feedback (fix this in the new plan):\n"
+                        f"{feedback}\n"
+                    )
+
+                user = (
+                    f"Mode hint: {mode_hint}\n\n"
+                    f"Relevant schema:\n{grounding}"
+                    f"{retry_note}\n\n"
+                    f"Question: {question}"
+                )
+
+                # --- ACT: Plan (LLM) + validate ---
+                raw_plan = self.bedrock.chat_json(sys, user, PLAN_SCHEMA)
+                if mode_hint in ("report", "dashboard"):
+                    raw_plan["mode"] = mode_hint
+                last_raw_plan = raw_plan
+
+                plan = validate_plan(self.registry, raw_plan)
+
+                # --- ACT: Execute deterministic plan ---
+                df = execute_plan(session, plan)
+
+                # --- OBSERVE: empty results -> retry with simpler guidance ---
+                if df is None or df.empty:
+                    feedback = (
+                        "Execution returned no rows. Try a simpler aggregation, remove restrictive filters, "
+                        "reduce dimensions, or broaden date constraints. Ensure at least one metric is produced."
+                    )
+                    log.info(
+                        "Execution produced empty results; retrying",
+                        extra={"attempt": attempt, "max_attempts": MAX_ITERS},
+                    )
+                    continue
+
+                # --- If dashboard: render charts (keep existing behavior) ---
+                if plan.mode == "dashboard":
+                    def _repair_spec(spec_in: Dict[str, Any]) -> Dict[str, Any]:
+                        """Fill in missing x/y/names/values so plotly_factory can render reliably."""
+                        spec = dict(spec_in or {})
+                        spec_type = (spec.get("type") or "bar").lower()
+                        spec["type"] = spec_type
+
+                        if spec_type in {"bar", "line", "scatter", "area"}:
+                            if not spec.get("x"):
+                                spec["x"] = (
+                                    plan.dimensions[0]
+                                    if plan.dimensions
+                                    else (df.columns[0] if len(df.columns) else None)
+                                )
+                            if not spec.get("y"):
+                                y0 = plan.metrics[0]["name"] if (plan.metrics and isinstance(plan.metrics[0], dict)) else None
+                                if y0 and y0 in df.columns:
+                                    spec["y"] = y0
+                                else:
+                                    xcol = spec.get("x")
+                                    numeric_cols = [
+                                        c for c in df.columns
+                                        if c != xcol and pd.api.types.is_numeric_dtype(df[c])
+                                    ]
+                                    if numeric_cols:
+                                        spec["y"] = numeric_cols[0]
+                                    elif len(df.columns) > 1:
+                                        spec["y"] = df.columns[1]
+
+                        if spec_type == "pie":
+                            if not spec.get("names") and plan.dimensions:
+                                spec["names"] = plan.dimensions[0]
+                            if not spec.get("values") and plan.metrics:
+                                y0 = plan.metrics[0]["name"]
+                                if y0 in df.columns:
+                                    spec["values"] = y0
+
+                        if spec_type == "kpi":
+                            if not spec.get("value") and plan.metrics:
+                                cand = plan.metrics[0].get("name")
+                                if cand in df.columns:
+                                    spec["value"] = cand
+                            spec.setdefault("reduce", "sum")
+
+                        return spec
+
+                    charts = list(plan.charts or [])
+                    if not charts and plan.chart:
+                        charts = [plan.chart]
+                    if not charts:
+                        charts = [{"type": "bar"}]
+
+                    ql = question.lower()
+                    if "kpi" in ql:
+                        has_kpi = any(
+                            str(c.get("type", "")).lower() == "kpi"
+                            for c in charts
+                            if isinstance(c, dict)
+                        )
+                        if not has_kpi:
+                            charts = ([{"type": "kpi"}] + charts)
+
+                    figures = []
+                    try:
+                        for c in charts:
+                            fig = build_figure(df, _repair_spec(dict(c or {})))
+                            figures.append(fig)
+                        primary = figures[0] if figures else None
+                        return AgentResult(
+                            ok=True,
+                            message="OK",
+                            plan=last_raw_plan,
+                            confidence=confidence,
+                            df=df,
+                            figure=primary,
+                            figures=figures,
+                        )
+                    except PlotlyRenderError:
+                        # Fallback to table without retrying further (chart issue isn't data/planning)
+                        return AgentResult(
+                            ok=True,
+                            message="OK (fallback table)",
+                            plan=last_raw_plan,
+                            confidence=confidence,
+                            df=df,
+                            figure=None,
+                            figures=None,
+                        )
+
+                # --- Report success ---
+                return AgentResult(ok=True, message="OK", plan=last_raw_plan, confidence=confidence, df=df)
+
+            except SchemaValidationError as e:
+                feedback = (
+                    f"Schema validation failed: {str(e)}. "
+                    "Do NOT use unknown tables/columns. Use only the columns shown in the provided schema context. "
+                    "If you need a derived field, compute it using supported functions or omit it."
+                )
+                log.warning(
+                    "Planning/validation failed; retrying",
+                    extra={"attempt": attempt, "max_attempts": MAX_ITERS, "error": str(e)},
+                    exc_info=True,
+                )
+                continue
+
+            except RetrievalError as e:
+                feedback = (
+                    f"Schema retrieval failed: {str(e)}. "
+                    "Use only the provided schema context and avoid uncommon/ambiguous business aliases."
+                )
+                log.warning(
+                    "Retrieval failed; retrying",
+                    extra={"attempt": attempt, "max_attempts": MAX_ITERS, "error": str(e)},
+                    exc_info=True,
+                )
+                continue
+
+            except Exception as e:
+                # Generic failure: encourage a minimal one-table plan on the next attempt.
+                feedback = (
+                    f"Execution failed: {str(e)}. "
+                    "Generate a simpler plan: use one table, one metric, one dimension, no joins, no complex expressions."
+                )
+                log.warning(
+                    "Attempt failed; retrying",
+                    extra={"attempt": attempt, "max_attempts": MAX_ITERS, "error": str(e)},
+                    exc_info=True,
+                )
+                continue
+
+        # All attempts exhausted
+        return AgentResult(ok=False, message=INSUFFICIENT, plan=last_raw_plan, confidence=last_confidence)
+
+
+'''from __future__ import annotations
+from dataclasses import dataclass
+from typing import Dict, Any, Optional
+import pandas as pd
+import os
+import time
+import json
+import hashlib
+from pathlib import Path
+
+from nl_analytics.config.settings import Settings
+from nl_analytics.schema.registry import SchemaRegistry
+from nl_analytics.data.session import DataSession
+from nl_analytics.bedrock.client import BedrockClient, BedrockConfig
+from nl_analytics.rag.vector_store import (
+    ChromaVectorStore,
+    S3VectorStore,
+    S3VectorsVectorStore,
+    VectorStore,
+)
+from nl_analytics.tools.schema_tool import build_schema_context
+from nl_analytics.tools.retrieval_tool import retrieve_schema_chunks
+from nl_analytics.tools.planning_tool import PLAN_SCHEMA, validate_plan
+from nl_analytics.tools.execution_tool import execute_plan
+from nl_analytics.viz.plotly_factory import build_figure
+from nl_analytics.exceptions.errors import RetrievalError, SchemaValidationError, AgentExecutionError, PlotlyRenderError
+from nl_analytics.logging.logger import get_logger
+
+
+log = get_logger("agents.orchestrator")
+
+INSUFFICIENT = "Insufficient data."
+
+@dataclass(frozen=True)
+class AgentResult:
+    ok: bool
+    message: str
+    plan: Optional[Dict[str, Any]] = None
+    confidence: float = 0.0
+    df: Optional[pd.DataFrame] = None
+    figure: Any = None
+    figures: Any = None
+
+class AgentOrchestrator:
+    def __init__(self, settings: Settings, registry: SchemaRegistry):
+        self.settings = settings
+        self.registry = registry
+
+        self.bedrock = BedrockClient(
+            BedrockConfig(
+                region=settings.aws_region,
+                chat_model_id=settings.bedrock_chat_model_id,
+                embed_model_id=settings.bedrock_embed_model_id,
+                max_tokens=settings.llm_max_tokens,
+                temperature=settings.llm_temperature,
+                use_mock=settings.use_mock_bedrock,
+            )
+        )
+
+        class _EmbedFn:
+            def __init__(self, br: BedrockClient):
+                self.br = br
+                # Optional: S3 Vectors index can require a specific embedding dimension.
+                # Stores the desired dimension (if known) and passes it to BedrockClient.embed().
+                self.desired_dimensions = None
+
+            # ✅ IMPORTANT: parameter name must be `input` (not texts)
+            def __call__(self, input):
+                # Chroma passes a list[str] typically; handle str too
+                if isinstance(input, str):
+                    input = [input]
+                return self.br.embed(list(input), dimensions=self.desired_dimensions)
+
+            def name(self) -> str:
+                return "default"
+
+            def get_config(self) -> dict:
+                return {"name": self.name()}
+
+        backend = (settings.vector_backend or "chroma").lower().strip()
+        if backend == "chroma":
+            self.store: VectorStore = ChromaVectorStore(settings.chroma_dir, embedding_fn=_EmbedFn(self.bedrock))
+        elif backend == "s3":
+            self.store = S3VectorStore(
+                bucket=settings.s3_vector_bucket,
+                prefix=settings.s3_vector_prefix,
+                cache_dir=settings.s3_vector_cache_dir,
+                refresh_seconds=settings.s3_vector_refresh_seconds,
+                embedding_fn=_EmbedFn(self.bedrock),
+            )
+        elif backend == "s3vectors":
+            self.store = S3VectorsVectorStore(
+                bucket=settings.s3vectors_bucket,
+                index=settings.s3vectors_index,
+                namespace=settings.s3vectors_namespace,
+                refresh_seconds=settings.s3vectors_refresh_seconds,
+                embedding_fn=_EmbedFn(self.bedrock),
+                region_name=getattr(settings, "aws_region", None),
+            )
+        else:
+            raise NotImplementedError(f"VECTOR_BACKEND not supported: {backend}")
+
+        self._ensure_schema_index_if_missing()
+
+    def _schema_state_path(self) -> Path:
+        p = Path("data") / ".cache"
+        p.mkdir(parents=True, exist_ok=True)
+        return p / "schema_index_state.json"
+
+    def _schema_fingerprint(self, schema_ctx) -> str:
+        payload = {"tables": schema_ctx.tables, "joins": schema_ctx.joins}
+        raw = json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
+        return hashlib.sha256(raw).hexdigest()
+
+    def _ensure_schema_index_if_missing(self) -> None:
+        """Ensure schema chunks exist in the vector store without re-embedding on every startup.
+
+        Uses a local fingerprint file and, when supported, a cheap sentinel lookup in the vector store.
+        Set FORCE_SCHEMA_REINDEX=true to force schema re-embedding/upsert.
+        """
+        schema_ctx = build_schema_context(self.registry)
+        fp = self._schema_fingerprint(schema_ctx)
+
+        force = str(os.environ.get("FORCE_SCHEMA_REINDEX", "")).strip().lower() in ("1", "true", "yes", "y")
+        if force:
+            self._upsert_schema_index(schema_ctx)
+            self._write_schema_state(fp)
+            return
+
+        state_ok = self._read_schema_state(fp)
+        store_ok = self._schema_sentinel_exists(schema_ctx)
+
+        if state_ok and (store_ok is None or store_ok):
+            log.info("Schema index present; skipping schema upsert", extra={"fingerprint": fp})
+            return
+
+        self._upsert_schema_index(schema_ctx)
+        self._write_schema_state(fp)
+
+    def _read_schema_state(self, fingerprint: str) -> bool:
+        p = self._schema_state_path()
+        if not p.exists():
+            return False
+        try:
+            state = json.loads(p.read_text(encoding="utf-8"))
+            return bool(state and state.get("fingerprint") == fingerprint)
+        except Exception:
+            return False
+
+    def _write_schema_state(self, fingerprint: str) -> None:
+        try:
+            self._schema_state_path().write_text(
+                json.dumps({"fingerprint": fingerprint, "updated_at": time.time()}),
+                encoding="utf-8",
+            )
+        except Exception:
+            # Best-effort only
+            pass
+
+    def _schema_sentinel_exists(self, schema_ctx) -> Optional[bool]:
+        """Return True/False if we can cheaply detect a schema record in the store; else None."""
+        if not schema_ctx.tables:
+            return None
+        sentinel_id = f"table::{next(iter(schema_ctx.tables.keys()))}"
+        if hasattr(self.store, "has_ids"):
+            try:
+                return bool(getattr(self.store, "has_ids")([sentinel_id])[0])
+            except Exception:
+                return None
+        return None
+
+    def _upsert_schema_index(self, schema_ctx) -> None:
+        docs, metas, ids = [], [], []
+
+        for tname, t in schema_ctx.tables.items():
+            text = f"TABLE {tname}: {t['description']}\n"
+            for c, cinfo in t["columns"].items():
+                text += f"- {c} ({cinfo['type']}): {cinfo['description']}\n"
+            docs.append(text)
+            metas.append({"kind": "table", "table": tname})
+            ids.append(f"table::{tname}")
+
+        for i, j in enumerate(schema_ctx.joins):
+            text = (
+                f"JOIN RULE: {j['left_table']} -> {j['right_table']} "
+                f"ON {j['left_keys']} = {j['right_keys']} TYPE {j['join_type']}"
+            )
             docs.append(text)
             metas.append({"kind": "join", "left": j["left_table"], "right": j["right_table"]})
             ids.append(f"join::{i}")
@@ -228,3 +719,4 @@ class AgentOrchestrator:
                 return AgentResult(ok=True, message="OK (fallback table)", plan=raw_plan, confidence=confidence, df=df, figure=None, figures=None)
 
         return AgentResult(ok=True, message="OK", plan=raw_plan, confidence=confidence, df=df)
+'''
