@@ -1,0 +1,37 @@
+{
+  "id": "1768537770598",
+  "created_at": 1768537770.5982065,
+  "mode": "dashboard",
+  "question": "Create a dashboard with a KPI for total instruments and a bar chart of instrument count by PortfolioID.",
+  "plan": {
+    "mode": "dashboard",
+    "tables": [
+      "pvr01500"
+    ],
+    "metrics": [
+      {
+        "name": "Total Instruments",
+        "expr": "COUNT(DISTINCT InstrumentID)"
+      }
+    ],
+    "dimensions": [
+      "PortfolioID"
+    ],
+    "filters": [],
+    "charts": [
+      {
+        "type": "kpi",
+        "title": "Total Instruments",
+        "value": "{{Total Instruments}}"
+      },
+      {
+        "type": "bar",
+        "title": "Instrument Count by Portfolio",
+        "x": "PortfolioID",
+        "y": "COUNT(DISTINCT InstrumentID)"
+      }
+    ],
+    "sort": [],
+    "limit": 5000
+  }
+}

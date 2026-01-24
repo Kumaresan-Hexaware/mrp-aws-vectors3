@@ -405,6 +405,38 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     for t in tables:
         registry.get_table(t)
 
+    # --- Augment tables when the plan references business aliases/columns that live elsewhere ---
+    # Heuristic: only auto-add when the alias resolves to a single table (to avoid adding many tables for generic words like 'date').
+    referenced_tokens: List[str] = []
+    referenced_tokens.extend([str(d) for d in (plan.get("dimensions") or [])])
+
+    for f in list(plan.get("filters") or []):
+        parts = str(f).replace("==", "=").split()
+        if parts:
+            referenced_tokens.append(parts[0].strip())
+
+    for m in list(plan.get("metrics") or []):
+        expr = str(m.get("expr", ""))
+        referenced_tokens.extend(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", _strip_qualifiers(expr)))
+
+    # Try resolving each token as a global alias -> (table, column)
+    for tok in referenced_tokens:
+        matches = registry.resolve_alias_global(tok)
+        if not matches:
+            continue
+        distinct_tables = sorted({t for t, _c in matches})
+        # If uniquely identifies a table, add it.
+        if len(distinct_tables) == 1:
+            t_add = distinct_tables[0]
+            if t_add not in tables:
+                tables.append(t_add)
+        else:
+            # If any match is already in selected tables, do nothing.
+            if any(t in tables for t in distinct_tables):
+                continue
+            # otherwise, ambiguous -> let the LLM retry rather than guessing.
+            continue
+
     # Precompute a column/alias map across the initially requested tables.
     # Used only for table pruning (we rebuild it later after pruning).
     candidate_cols: set[str] = set()
@@ -448,8 +480,18 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     if needed_tables:
         tables = needed_tables
 
-    # Ensure joinability
-    registry.find_join_path(tables)
+    # Ensure joinability (and expand intermediate join tables if needed)
+    join_rules = registry.find_join_path(tables)
+    if join_rules:
+        expanded = [tables[0]]
+        for jr in join_rules:
+            if jr.right_table not in expanded:
+                expanded.append(jr.right_table)
+        # keep any explicitly requested tables in their original order too
+        for t in tables[1:]:
+            if t not in expanded:
+                expanded.append(t)
+        tables = expanded
 
     # Collect columns across selected tables
     all_cols: set[str] = set()
@@ -498,8 +540,17 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     if needed_tables:
         tables = needed_tables
 
-    # Ensure joinability after pruning
-    registry.find_join_path(tables)
+    # Ensure joinability after pruning (and expand intermediate join tables if needed)
+    join_rules = registry.find_join_path(tables)
+    if join_rules:
+        expanded = [tables[0]]
+        for jr in join_rules:
+            if jr.right_table not in expanded:
+                expanded.append(jr.right_table)
+        for t in tables[1:]:
+            if t not in expanded:
+                expanded.append(t)
+        tables = expanded
 
     # Dimensions canonicalization
     dimensions_in = list(plan.get("dimensions") or [])

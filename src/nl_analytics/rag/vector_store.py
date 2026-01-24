@@ -359,6 +359,15 @@ class S3VectorsVectorStore:
             ):
                 meta = dict(meta or {})
                 meta.setdefault("source_text", text)
+                # S3 Vectors filterable metadata has a strict 2048-byte limit by default.
+                # Keep the stored source_text small enough to avoid ValidationException.
+                try:
+                    st = str(meta.get("source_text",""))
+                    if len(st.encode("utf-8")) > 1500:
+                        meta["source_text"] = st.encode("utf-8")[:1500].decode("utf-8", errors="ignore")
+                        meta["source_text_truncated"] = True
+                except Exception:
+                    pass
                 meta.setdefault("namespace", self.namespace)
 
                 batch_vectors.append(

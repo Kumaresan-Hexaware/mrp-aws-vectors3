@@ -65,6 +65,24 @@ class Settings:
     export_dir: str
     saved_query_dir: str
 
+    # ------------------------------------------------------------------
+    # Query/compute backend (duckdb / athena / redshift)
+    # ------------------------------------------------------------------
+    db_type: str
+
+    # Athena (Query results are read from the configured output S3 location)
+    athena_database: str
+    athena_workgroup: str
+    athena_output_location: str
+    athena_catalog: str
+
+    # Redshift Data API (provisioned or serverless)
+    redshift_database: str
+    redshift_cluster_id: str
+    redshift_workgroup_name: str
+    redshift_db_user: str
+    redshift_secret_arn: str
+
 def load_settings() -> Settings:
     app_env = _env("APP_ENV", "dev")
     cfg_path = Path("config") / f"{app_env}.yaml"
@@ -110,6 +128,25 @@ def load_settings() -> Settings:
     export_dir = _env("EXPORT_DIR", cfg["export"]["export_dir"])
     saved_query_dir = _env("SAVED_QUERY_DIR", cfg["export"]["saved_query_dir"])
 
+    # ------------------------------ Database ------------------------------
+    # Keep everything optional and default to duckdb so existing projects
+    # continue to run without any config changes.
+    db_cfg = (cfg.get("database") or {})
+    db_type = (_env("DB_TYPE", str(db_cfg.get("db_type", "duckdb"))) or "duckdb").strip().lower()
+
+    ath_cfg = (db_cfg.get("athena") or {})
+    athena_database = _env("ATHENA_DATABASE", str(ath_cfg.get("database", ""))) or ""
+    athena_workgroup = _env("ATHENA_WORKGROUP", str(ath_cfg.get("workgroup", ""))) or ""
+    athena_output_location = _env("ATHENA_OUTPUT_LOCATION", str(ath_cfg.get("output_location", ""))) or ""
+    athena_catalog = _env("ATHENA_CATALOG", str(ath_cfg.get("catalog", "AwsDataCatalog"))) or "AwsDataCatalog"
+
+    rs_cfg = (db_cfg.get("redshift") or {})
+    redshift_database = _env("REDSHIFT_DATABASE", str(rs_cfg.get("database", ""))) or ""
+    redshift_cluster_id = _env("REDSHIFT_CLUSTER_ID", str(rs_cfg.get("cluster_id", ""))) or ""
+    redshift_workgroup_name = _env("REDSHIFT_WORKGROUP_NAME", str(rs_cfg.get("workgroup_name", ""))) or ""
+    redshift_db_user = _env("REDSHIFT_DB_USER", str(rs_cfg.get("db_user", ""))) or ""
+    redshift_secret_arn = _env("REDSHIFT_SECRET_ARN", str(rs_cfg.get("secret_arn", ""))) or ""
+
     return Settings(
         env=app_env,
         log_level=_env("LOG_LEVEL", cfg["app"]["log_level"]),
@@ -141,4 +178,15 @@ def load_settings() -> Settings:
         llm_max_tokens=llm_max_tokens,
         export_dir=export_dir,
         saved_query_dir=saved_query_dir,
+
+        db_type=db_type,
+        athena_database=athena_database,
+        athena_workgroup=athena_workgroup,
+        athena_output_location=athena_output_location,
+        athena_catalog=athena_catalog,
+        redshift_database=redshift_database,
+        redshift_cluster_id=redshift_cluster_id,
+        redshift_workgroup_name=redshift_workgroup_name,
+        redshift_db_user=redshift_db_user,
+        redshift_secret_arn=redshift_secret_arn,
     )

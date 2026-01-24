@@ -4,20 +4,37 @@ from typing import Dict, Any, List
 
 from nl_analytics.schema.registry import SchemaRegistry
 
+
 @dataclass(frozen=True)
 class SchemaContext:
     tables: Dict[str, Any]
     joins: List[Dict[str, Any]]
 
+
 def build_schema_context(registry: SchemaRegistry) -> SchemaContext:
-    tables = {}
+    """Build a compact, retrieval-friendly schema context.
+
+    This context is embedded into the vector store and used to ground the planner.
+    Include business aliases so user terms map correctly to real columns.
+    """
+    tables: Dict[str, Any] = {}
     for t in registry.list_tables():
         spec = registry.get_table(t)
         tables[t] = {
             "description": spec.description,
             "primary_key": spec.primary_key,
-            "columns": {c: {"type": spec.columns[c].type, "description": spec.columns[c].description} for c in spec.columns},
+            "aliases": list(spec.aliases or []),
+            "business_tags": list(spec.business_tags or []),
+            "columns": {
+                c: {
+                    "type": spec.columns[c].type,
+                    "description": spec.columns[c].description,
+                    "aliases": list(spec.columns[c].aliases or []),
+                }
+                for c in spec.columns
+            },
         }
+
     joins = [
         {
             "left_table": j.left_table,

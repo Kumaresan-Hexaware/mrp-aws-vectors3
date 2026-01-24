@@ -318,7 +318,7 @@ except Exception:
     st.stop()
 
 if "data_session" not in st.session_state:
-    st.session_state["data_session"] = DataSession(registry=registry)
+    st.session_state["data_session"] = DataSession(registry=registry, settings=settings)
 
 if "last_plan" not in st.session_state:
     st.session_state["last_plan"] = None

@@ -41,3 +41,29 @@ models:
 export:
   export_dir: "data/exports"
   saved_query_dir: "data/saved_queries"
+
+# ---------------------------------------------------------------------------
+# Query execution backend:
+#   - duckdb   : local in-memory SQL over workspace dataframes (current default)
+#   - athena   : run SQL in Athena against Glue/S3 tables
+#   - redshift : run SQL using Redshift Data API
+#
+# You can override any value below using environment variables:
+#   DB_TYPE=athena|redshift|duckdb
+#   ATHENA_DATABASE, ATHENA_OUTPUT_LOCATION, ATHENA_WORKGROUP
+#   REDSHIFT_DATABASE, REDSHIFT_CLUSTER_ID or REDSHIFT_WORKGROUP_NAME,
+#   REDSHIFT_DB_USER or REDSHIFT_SECRET_ARN
+# ---------------------------------------------------------------------------
+database:
+  db_type: "duckdb"
+  athena:
+    database: ""
+    workgroup: ""
+    output_location: ""   # e.g., s3://my-bucket/athena-results/
+    catalog: "AwsDataCatalog"
+  redshift:
+    database: ""
+    cluster_id: ""        # for provisioned Redshift
+    workgroup_name: ""    # for Redshift Serverless
+    db_user: ""           # optional if using secret_arn
+    secret_arn: ""        # preferred for auth

@@ -5,6 +5,7 @@ from typing import Dict, List
 import pandas as pd
 
 from nl_analytics.schema.registry import SchemaRegistry
+from nl_analytics.config.settings import Settings
 from nl_analytics.logging.logger import get_logger
 
 log = get_logger("data.session")
@@ -21,6 +22,7 @@ class DataSession:
     """
 
     registry: SchemaRegistry
+    settings: Settings
     # Aggregated tables (logical table -> combined dataframe)
     tables: Dict[str, pd.DataFrame] = field(default_factory=dict)
 

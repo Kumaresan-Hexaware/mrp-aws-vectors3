@@ -1,13 +1,20 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
 from pathlib import Path
+from typing import Dict, List, Tuple, Iterable, Optional
+
 import yaml
 
 from nl_analytics.exceptions.errors import SchemaValidationError
 from nl_analytics.logging.logger import get_logger
 
 log = get_logger("schema.registry")
+
+
+def _norm(s: str) -> str:
+    return "".join(ch.lower() for ch in (s or "") if ch.isalnum())
+
 
 @dataclass(frozen=True)
 class ColumnSpec:
@@ -16,6 +23,7 @@ class ColumnSpec:
     description: str = ""
     aliases: List[str] = field(default_factory=list)
 
+
 @dataclass(frozen=True)
 class TableSpec:
     name: str
@@ -23,6 +31,10 @@ class TableSpec:
     description: str
     primary_key: List[str]
     columns: Dict[str, ColumnSpec]
+    # Optional table-level retrieval helpers
+    aliases: List[str] = field(default_factory=list)
+    business_tags: List[str] = field(default_factory=list)
+
 
 @dataclass(frozen=True)
 class JoinRule:
@@ -32,11 +44,14 @@ class JoinRule:
     right_keys: List[str]
     join_type: str = "inner"
 
+
 class SchemaRegistry:
     def __init__(self, tables: Dict[str, TableSpec], joins: List[JoinRule], version: int = 1):
         self.version = version
         self.tables = tables
         self.joins = joins
+
+        # adjacency list for join graph (bidirectional, key-mapped)
         self._adj: Dict[str, List[JoinRule]] = {}
         for j in joins:
             self._adj.setdefault(j.left_table, []).append(j)
@@ -50,6 +65,21 @@ class SchemaRegistry:
                 )
             )
 
+        # Global alias index: alias token -> list[(table, column)]
+        self._global_alias: Dict[str, List[Tuple[str, str]]] = {}
+        for tname, tspec in self.tables.items():
+            for cname, cspec in tspec.columns.items():
+                for key in {cname.lower(), _norm(cname)}:
+                    if key:
+                        self._global_alias.setdefault(key, []).append((tname, cname))
+                for a in (cspec.aliases or []):
+                    a = str(a).strip()
+                    if not a:
+                        continue
+                    for key in {a.lower(), _norm(a)}:
+                        if key:
+                            self._global_alias.setdefault(key, []).append((tname, cname))
+
     @staticmethod
     def load(path: str = "schemas/schema_registry.yaml") -> "SchemaRegistry":
         p = Path(path)
@@ -60,7 +90,7 @@ class SchemaRegistry:
 
         tables: Dict[str, TableSpec] = {}
         for tname, tval in (raw.get("tables") or {}).items():
-            cols = {}
+            cols: Dict[str, ColumnSpec] = {}
             for cname, cval in (tval.get("columns") or {}).items():
                 aliases = cval.get("aliases", [])
                 if isinstance(aliases, str):
@@ -72,12 +102,25 @@ class SchemaRegistry:
                     description=str(cval.get("description", "")),
                     aliases=aliases,
                 )
+
+            t_aliases = tval.get("aliases", []) or []
+            if isinstance(t_aliases, str):
+                t_aliases = [t_aliases]
+            t_aliases = [str(a) for a in t_aliases if str(a).strip()]
+
+            tags = tval.get("business_tags", []) or []
+            if isinstance(tags, str):
+                tags = [tags]
+            tags = [str(x) for x in tags if str(x).strip()]
+
             tables[tname] = TableSpec(
                 name=tname,
                 file_patterns=list(tval.get("file_patterns", [])),
                 description=str(tval.get("description", "")),
                 primary_key=list(tval.get("primary_key", [])),
                 columns=cols,
+                aliases=t_aliases,
+                business_tags=tags,
             )
 
         joins: List[JoinRule] = []
@@ -119,21 +162,48 @@ class SchemaRegistry:
         self._ensure_table(table)
         return sorted(self.tables[table].columns.keys())
 
+    def tables_for_column(self, column: str, within_tables: Optional[Iterable[str]] = None) -> List[str]:
+        """Return tables (optionally restricted) that contain the given canonical column name."""
+        col_l = (column or "").strip().lower()
+        if not col_l:
+            return []
+        pool = list(within_tables) if within_tables is not None else self.tables.keys()
+        out: List[str] = []
+        for t in pool:
+            self._ensure_table(t)
+            if col_l in {c.lower() for c in self.tables[t].columns.keys()}:
+                out.append(t)
+        return out
+
+    def resolve_alias_global(self, token: str) -> List[Tuple[str, str]]:
+        """Resolve a business alias or column-like token into [(table, canonical_column)]."""
+        tok = (token or "").strip()
+        if not tok:
+            return []
+        keys = {tok.lower(), _norm(tok)}
+        out: List[Tuple[str, str]] = []
+        for k in keys:
+            out.extend(self._global_alias.get(k, []))
+        # de-dup while preserving order
+        seen = set()
+        dedup: List[Tuple[str, str]] = []
+        for t, c in out:
+            if (t, c) in seen:
+                continue
+            seen.add((t, c))
+            dedup.append((t, c))
+        return dedup
+
     def column_alias_map_for_tables(self, tables: List[str]) -> Dict[str, str]:
         """Return a case-insensitive map of alias -> canonical column name across selected tables."""
         alias_map: Dict[str, str] = {}
 
-        def _norm(s: str) -> str:
-            return "".join(ch.lower() for ch in (s or "") if ch.isalnum())
-
         for t in tables:
             self._ensure_table(t)
             for cname, cspec in self.tables[t].columns.items():
-                # Always include the canonical column itself as a lookup key.
                 for k in {cname.lower(), _norm(cname)}:
                     if k:
                         alias_map.setdefault(k, cname)
-
                 for a in (cspec.aliases or []):
                     a = str(a).strip()
                     if not a:
@@ -141,7 +211,6 @@ class SchemaRegistry:
                     for k in {a.lower(), _norm(a)}:
                         if k:
                             alias_map.setdefault(k, cname)
-
         return alias_map
 
     def get_table(self, table: str) -> TableSpec:
@@ -179,6 +248,7 @@ class SchemaRegistry:
 
     def _bfs_path_any_source(self, sources: set, target: str) -> List[JoinRule]:
         from collections import deque
+
         q = deque()
         prev: Dict[str, Tuple[str, JoinRule]] = {}
         visited = set(sources)

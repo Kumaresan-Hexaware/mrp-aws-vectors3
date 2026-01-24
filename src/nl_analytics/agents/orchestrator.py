@@ -170,16 +170,80 @@ class AgentOrchestrator:
         return None
 
     def _upsert_schema_index(self, schema_ctx) -> None:
+        """Upsert schema into the vector store.
+
+        IMPORTANT (S3 Vectors): metadata is filterable by default and has a strict 2048-byte limit.
+        Our S3VectorsVectorStore stores the chunk text in metadata['source_text'] so we MUST keep
+        each schema chunk reasonably small. Therefore we chunk large tables into multiple records.
+        """
         docs, metas, ids = [], [], []
 
-        for tname, t in schema_ctx.tables.items():
-            text = f"TABLE {tname}: {t['description']}\n"
-            for c, cinfo in t["columns"].items():
-                text += f"- {c} ({cinfo['type']}): {cinfo['description']}\n"
-            docs.append(text)
-            metas.append({"kind": "table", "table": tname})
-            ids.append(f"table::{tname}")
+        # Chunk table schemas so each chunk stays small enough to fit inside S3 Vectors metadata limits
+        MAX_CHUNK_CHARS = 1200  # conservative; 1200 chars ~= < 2048 bytes in most cases
+        COLS_PER_CHUNK = 18     # fallback bound on very wide tables
 
+        for tname, t in schema_ctx.tables.items():
+            desc = (t.get("description") or "").strip()
+            t_aliases = t.get("aliases") or []
+            t_tags = t.get("business_tags") or []
+            # NOTE: inside an f-string, the expression must be fully contained in the {...} braces.
+            # Use single quotes around the delimiter to avoid breaking the f-string parser.
+            alias_line = f"TABLE_ALIASES: {', '.join(t_aliases)}\n" if t_aliases else ""
+            tag_line = f"TAGS: {', '.join(t_tags)}\n" if t_tags else ""
+            header = f"TABLE {tname}: {desc}\n" + alias_line + tag_line
+
+
+            # Convert columns into lines
+            col_lines = []
+            for c, cinfo in (t.get("columns") or {}).items():
+                ctype = (cinfo.get("type") or "").strip()
+                cdesc = (cinfo.get("description") or "").strip()
+                aliases = (cinfo.get("aliases") or [])
+                if isinstance(aliases, str):
+                    aliases = [aliases]
+                aliases = [str(a).strip() for a in aliases if str(a).strip()]
+                if aliases:
+                    aliases = aliases[:6]
+                    col_lines.append(f"- {c} ({ctype}): {cdesc} | aliases: {', '.join(aliases)}")
+                else:
+                    col_lines.append(f"- {c} ({ctype}): {cdesc}")
+
+            # Build chunks (first chunk keeps the legacy id 'table::{tname}' for sentinel checks)
+            chunk_idx = 0
+            cur = header
+            cur_count = 0
+
+            def _flush(text: str, idx: int) -> None:
+                # Keep first chunk id stable for schema sentinel detection.
+                rid = f"table::{tname}" if idx == 0 else f"table::{tname}::chunk{idx}"
+                docs.append(text)
+                metas.append({"kind": "table", "table": tname, "chunk": idx})
+                ids.append(rid)
+
+            for line in col_lines:
+                # Hard split by count to avoid pathological long descriptions
+                if cur_count >= COLS_PER_CHUNK:
+                    _flush(cur + "\n", chunk_idx)
+                    chunk_idx += 1
+                    cur = header
+                    cur_count = 0
+
+                # Soft split by size
+                tentative = cur + line + "\n"
+                if len(tentative) > MAX_CHUNK_CHARS and cur != header:
+                    _flush(cur + "\n", chunk_idx)
+                    chunk_idx += 1
+                    cur = header + line + "\n"
+                    cur_count = 1
+                else:
+                    cur = tentative
+                    cur_count += 1
+
+            # Flush remaining
+            if cur.strip():
+                _flush(cur if cur.endswith("\n") else (cur + "\n"), chunk_idx)
+
+        # Joins are small and safe
         for i, j in enumerate(schema_ctx.joins):
             text = (
                 f"JOIN RULE: {j['left_table']} -> {j['right_table']} "
@@ -190,6 +254,7 @@ class AgentOrchestrator:
             ids.append(f"join::{i}")
 
         self.store.upsert(ids=ids, texts=docs, metadatas=metas)
+
     def run(self, session: DataSession, question: str, mode_hint: str) -> AgentResult:
         """Run the agent in a lightweight ReAct loop (Reason → Act → Observe → retry).
 
