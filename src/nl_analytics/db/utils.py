@@ -7,16 +7,17 @@ import re
 
 @dataclass(frozen=True)
 class SqlDialect:
-    """Very small dialect shim for identifier quoting.
+    """Tiny dialect shim.
 
-    DuckDB and Redshift happily accept ANSI double-quotes for identifiers.
-    Athena (Presto/Trino) commonly uses backticks in Glue/Hive-style schemas.
+    This project primarily executes on DuckDB / Athena / Redshift, but we
+    occasionally need to *render* SQL for other engines (ex: Postgres) for
+    testing purposes.
 
-    We keep this intentionally tiny so the rest of the executor logic stays
-    unchanged.
+    Keep this minimal so executor logic remains stable.
     """
 
     ident_quote: str  # either '"' or '`'
+    try_cast_double_template: str = "TRY_CAST({expr} AS DOUBLE)"
 
     def ident(self, name: str) -> str:
         q = self.ident_quote
@@ -25,12 +26,28 @@ class SqlDialect:
         # backtick
         return '`' + name.replace('`', '``') + '`'
 
+    def try_cast_double(self, expr: str) -> str:
+        """Return a "best-effort" cast-to-double expression for this dialect."""
+        return self.try_cast_double_template.format(expr=expr)
+
 
 def dialect_for(db_type: str) -> SqlDialect:
     t = (db_type or "duckdb").strip().lower()
     if t == "athena":
-        return SqlDialect(ident_quote="`")
-    return SqlDialect(ident_quote='"')
+        return SqlDialect(ident_quote="`", try_cast_double_template="TRY_CAST({expr} AS DOUBLE)")
+    if t in {"postgres", "postgresql", "pg"}:
+        # Postgres has no TRY_CAST. For testing, emit a defensive CASE expression that
+        # avoids hard failures on non-numeric strings.
+        # NOTE: This is only for logging/testing output; execution is still driven by db_type.
+        pg_try_cast = (
+            "CASE "
+            "WHEN {expr} IS NULL THEN NULL "
+            "WHEN ({expr})::text ~ '^[+-]?[0-9]+(\\.[0-9]+)?$' THEN ({expr})::double precision "
+            "ELSE NULL END"
+        )
+        return SqlDialect(ident_quote='"', try_cast_double_template=pg_try_cast)
+    # duckdb / redshift / default
+    return SqlDialect(ident_quote='"', try_cast_double_template="TRY_CAST({expr} AS DOUBLE)")
 
 
 def parse_s3_uri(uri: str) -> Tuple[str, str]:

@@ -184,60 +184,29 @@ def _metric_sql(metrics: List[Dict[str, str]], col_ref: Dict[str, str], dialect:
         agg_l = agg.lower()
         if distinct:
             if agg_l in {"sum", "avg"}:
-                col_sql = f"DISTINCT TRY_CAST({col_sql} AS DOUBLE)"
+                col_sql = f"DISTINCT {dialect.try_cast_double(col_sql)}"
             else:
                 col_sql = f"DISTINCT {col_sql}"
         else:
             if agg_l in {"sum", "avg"}:
-                col_sql = f"TRY_CAST({col_sql} AS DOUBLE)"
+                col_sql = dialect.try_cast_double(col_sql)
 
         out.append(f"{agg.upper()}({col_sql}) AS {_sql_ident(name, dialect)}")
     return out
 
 
-def _filters_sql(filters: List[str], col_ref: Dict[str, str], dialect: SqlDialect) -> str:
-    if not filters:
-        return ""
-    safe_parts: List[str] = []
-    for f in filters:
-        f = f.strip()
-        m = re.match(r'^([A-Za-z0-9_]+)\s*(=|!=|>=|<=|>|<)\s*(.+)$', f)
-        if not m:
-            continue
-        col, op, val = m.group(1), m.group(2), m.group(3).strip()
+def _compile_sql(
+    registry: SchemaRegistry,
+    plan: QueryPlan,
+    tables: List[str],
+    col_ref: Dict[str, str],
+    dialect: SqlDialect,
+) -> str:
+    """Compile a QueryPlan into SQL for the given dialect.
 
-        # Qualify ambiguous columns if possible
-        if col in col_ref:
-            qual = col_ref[col]
-            alias, col2 = qual.split(".", 1)
-            col_sql = f"{alias}.{_sql_ident(col2, dialect)}"
-        else:
-            col_sql = _sql_ident(col, dialect)
-
-        if val.startswith(("'", '"')) and val.endswith(("'", '"')):
-            safe_val = val
-        else:
-            if re.match(r'^-?\d+(\.\d+)?$', val):
-                safe_val = val
-            else:
-                safe_val = "'" + val.replace("'", "''") + "'"
-        safe_parts.append(f"{col_sql} {op} {safe_val}")
-    if not safe_parts:
-        return ""
-    return "WHERE " + " AND ".join(safe_parts)
-
-
-def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
-    registry = session.registry
-    db_type = (session.settings.db_type or "duckdb").strip().lower()
-    dialect = dialect_for(db_type)
-
-    # Resolve plan tables to registry-canonical names (case-insensitive)
-    tables = [session.canonical_table_name(t) for t in plan.tables]
-
-    # Build column->qualified reference map to prevent ambiguous column errors
-    col_ref = _build_column_ref_map(registry, tables)
-    root = tables[0]
+    This is used for execution (db_type dialect) and also for rendering alternate
+    dialect SQL (ex: Postgres) for testing/logging.
+    """
 
     # SELECT list
     select_cols: List[str] = []
@@ -254,7 +223,9 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     join_sql, _ = build_join_sql(registry, tables, dialect)
 
     group_by = ""
-    if plan.dimensions:
+    # Only GROUP BY when we are producing aggregated metrics.
+    # Row-level "exception" / "listing" queries may have dimensions only and must not be grouped.
+    if plan.metrics and plan.dimensions:
         gb_parts = []
         for d in plan.dimensions:
             if d in col_ref:
@@ -295,14 +266,101 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     {limit_sql}
     """.strip()
 
-    log.info(f"SQL  ::: {str(sql)}")
-    log.info(
-        "Executing SQL",
-        extra={
-            "db_type": db_type,
-            "sql": (str(sql[:500] + ("..." if len(sql) > 500 else ""))),
-        },
-    )
+    return sql
+
+
+def _filters_sql(filters: List[str], col_ref: Dict[str, str], dialect: SqlDialect) -> str:
+    """Render simple AND-combined filters safely.
+
+    Supported patterns (case-insensitive):
+      - Col = 10
+      - Col != 'abc'
+      - Col >= 1.2
+      - Col IS NULL
+      - Col IS NOT NULL
+
+    Note: planning_tool canonicalizes the first token to a column name, so we primarily expect bare columns,
+    but we defensively handle optional table qualification (t.Col) here as well.
+    """
+    if not filters:
+        return ""
+
+    safe_parts: List[str] = []
+    for f in filters:
+        f = (f or "").strip()
+        if not f:
+            continue
+
+        # IS NULL / IS NOT NULL
+        m_null = re.match(r"^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s+is\s+(not\s+)?null\s*$", f, flags=re.I)
+        if m_null:
+            col_tok = m_null.group(1)
+            is_not = bool(m_null.group(2))
+            if "." in col_tok:
+                alias, col2 = col_tok.split(".", 1)
+                col_sql = f"{alias}.{_sql_ident(col2, dialect)}"
+            elif col_tok in col_ref:
+                alias, col2 = col_ref[col_tok].split(".", 1)
+                col_sql = f"{alias}.{_sql_ident(col2, dialect)}"
+            else:
+                col_sql = _sql_ident(col_tok, dialect)
+            safe_parts.append(f"{col_sql} IS {'NOT ' if is_not else ''}NULL")
+            continue
+
+        # Simple binary comparisons
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*(=|!=|>=|<=|>|<)\s*(.+)$', f)
+        if not m:
+            continue
+        col_tok, op, val = m.group(1), m.group(2), m.group(3).strip()
+
+        # Qualify ambiguous columns if possible (or preserve explicit table qualifier)
+        if "." in col_tok:
+            alias, col2 = col_tok.split(".", 1)
+            col_sql = f"{alias}.{_sql_ident(col2, dialect)}"
+        elif col_tok in col_ref:
+            alias, col2 = col_ref[col_tok].split(".", 1)
+            col_sql = f"{alias}.{_sql_ident(col2, dialect)}"
+        else:
+            col_sql = _sql_ident(col_tok, dialect)
+
+        if val.startswith(("'", '"')) and val.endswith(("'", '"')):
+            safe_val = val
+        else:
+            if re.match(r'^-?\d+(\.\d+)?$', val):
+                safe_val = val
+            else:
+                safe_val = "'" + val.replace("'", "''") + "'"
+        safe_parts.append(f"{col_sql} {op} {safe_val}")
+
+    if not safe_parts:
+        return ""
+    return "WHERE " + " AND ".join(safe_parts)
+
+
+def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
+    registry = session.registry
+    db_type = (session.settings.db_type or "duckdb").strip().lower()
+    dialect = dialect_for(db_type)
+
+    # Resolve plan tables to registry-canonical names (case-insensitive)
+    tables = [session.canonical_table_name(t) for t in plan.tables]
+
+    # Build column->qualified reference map to prevent ambiguous column errors
+    col_ref = _build_column_ref_map(registry, tables)
+    sql = _compile_sql(registry, plan, tables, col_ref, dialect)
+
+    # Always print the engine SQL used for execution (today: DuckDB).
+    log.info(f"{db_type.upper()} SQL :::\n{sql}")
+
+    # For testing only: also render Postgres SQL (do NOT execute it).
+    try:
+        pg_dialect = dialect_for("postgres")
+        pg_sql = _compile_sql(registry, plan, tables, col_ref, pg_dialect)
+        log.info(f"POSTGRES SQL :::\n{pg_sql}")
+    except Exception as e:
+        log.warning(f"Failed to render POSTGRES SQL (render-only): {e}")
+    # Keep the old "Executing SQL" message for continuity (extra fields are not printed by default logger).
+    log.info("Executing SQL")
 
     if db_type == "duckdb":
         for t in tables:

@@ -7,6 +7,7 @@ import time
 import json
 import hashlib
 from pathlib import Path
+import re
 
 from nl_analytics.config.settings import Settings
 from nl_analytics.schema.registry import SchemaRegistry
@@ -254,6 +255,136 @@ class AgentOrchestrator:
             ids.append(f"join::{i}")
 
         self.store.upsert(ids=ids, texts=docs, metadatas=metas)
+    def _clamp01(self, x: float) -> float:
+        try:
+            x = float(x)
+        except Exception:
+            return 0.0
+        if x < 0.0:
+            return 0.0
+        if x > 1.0:
+            return 1.0
+        return x
+
+    def _tables_mentioned_in_question(self, question: str) -> set[str]:
+        """Best-effort: infer which registry tables are referenced by the NL question via alias resolution.
+
+        Used only for confidence scoring/logging. This does NOT change planning/execution behavior.
+        """
+        q = (question or "").strip().lower()
+        if not q:
+            return set()
+
+        words = re.findall(r"[a-z0-9_]+", q)
+
+        # Build 1-3 gram candidates to catch aliases like "net margin".
+        candidates: list[str] = []
+        for n in (3, 2, 1):
+            for i in range(0, max(0, len(words) - n + 1)):
+                cand = " ".join(words[i : i + n]).strip()
+                if cand:
+                    candidates.append(cand)
+
+        tables: set[str] = set()
+        seen: set[str] = set()
+        for cand in candidates:
+            if cand in seen:
+                continue
+            seen.add(cand)
+            try:
+                matches = self.registry.resolve_alias_global(cand)  # [(table, column), ...]
+            except Exception:
+                matches = []
+            for t, _c in (matches or []):
+                if t:
+                    tables.add(str(t))
+        return tables
+
+    def _compute_plan_confidence(self, question: str, plan) -> float:
+        """Heuristic plan confidence (0..1) based on validation success and intent alignment."""
+        p = 1.0
+
+        mentioned_tables = self._tables_mentioned_in_question(question)
+        if len(mentioned_tables) >= 2 and len(getattr(plan, "tables", []) or []) == 1:
+            p -= 0.30
+
+        ql = (question or "").lower()
+        relationship_intent = any(
+            k in ql
+            for k in (
+                " vs ",
+                "versus",
+                "relationship",
+                "correlat",
+                "compare",
+                "impact",
+                "higher",
+                "lower",
+            )
+        )
+        has_metrics = bool(getattr(plan, "metrics", []) or [])
+        dims = list(getattr(plan, "dimensions", []) or [])
+        if relationship_intent and (not has_metrics) and len(dims) >= 3:
+            p -= 0.15
+
+        wants_group = any(k in ql for k in (" for each ", " by ", " per ", "group by"))
+        if wants_group and has_metrics and len(dims) == 0:
+            p -= 0.20
+
+        return self._clamp01(p)
+
+    def _compute_result_confidence(self, df: pd.DataFrame, plan) -> float:
+        """Heuristic result confidence (0..1) based on simple output sanity checks."""
+        if df is None or df.empty:
+            return 0.0
+
+        q = 1.0
+
+        metric_cols: list[str] = []
+        for m in (getattr(plan, "metrics", []) or []):
+            if isinstance(m, dict):
+                name = m.get("name")
+                if name and name in df.columns:
+                    metric_cols.append(name)
+
+        if not metric_cols:
+            for c in df.columns:
+                if pd.api.types.is_numeric_dtype(df[c]):
+                    metric_cols.append(c)
+
+        if metric_cols:
+            null_ratios = []
+            for c in metric_cols[:5]:
+                try:
+                    null_ratios.append(float(df[c].isna().mean()))
+                except Exception:
+                    pass
+            if null_ratios:
+                avg_null = sum(null_ratios) / max(1, len(null_ratios))
+                if avg_null > 0.70:
+                    q -= 0.30
+                elif avg_null > 0.40:
+                    q -= 0.15
+
+        dims = list(getattr(plan, "dimensions", []) or [])
+        if dims:
+            dim0 = dims[0]
+            if dim0 in df.columns:
+                try:
+                    nunique = int(df[dim0].nunique(dropna=True))
+                    if nunique <= 1 and len(df) >= 5:
+                        q -= 0.15
+                except Exception:
+                    pass
+
+        return self._clamp01(q)
+
+    def _compute_final_confidence(self, r: float, p: float, q: float, e: float) -> float:
+        """Composite confidence = 0.35R + 0.30P + 0.20Q + 0.15E (clamped)."""
+        final = (0.35 * self._clamp01(r)) + (0.30 * self._clamp01(p)) + (0.20 * self._clamp01(q)) + (0.15 * self._clamp01(e))
+        return self._clamp01(final)
+
+
 
     def run(self, session: DataSession, question: str, mode_hint: str) -> AgentResult:
         """Run the agent in a lightweight ReAct loop (Reason → Act → Observe → retry).
@@ -286,20 +417,37 @@ class AgentOrchestrator:
                 # --- ACT: Retrieve relevant schema chunks (RAG) ---
                 retrieval = retrieve_schema_chunks(self.store, question, top_k=self.settings.rag_top_k)
 
-                # --- OBSERVE: confidence gate (same as before) ---
+                # --- OBSERVE: confidence (retrieval + plan + execution + result quality) ---
                 data_avail = 1.0 if session.tables else 0.0
-                confidence = float(retrieval.confidence * data_avail)
+
+                # Retrieval confidence (existing behavior)
+                r_conf = float(retrieval.confidence * data_avail)
+
+                # Plan/Execution/Result confidences start at 0 until we actually reach those stages
+                p_conf = 0.0
+                e_conf = 0.0
+                q_conf = 0.0
+
+                confidence = self._compute_final_confidence(r_conf, p_conf, q_conf, e_conf)
                 last_confidence = confidence
 
                 log.info(
                     "Confidence computed",
-                    extra={"confidence": round(confidence, 4), "attempt": attempt, "max_attempts": MAX_ITERS},
+                    extra={
+                        "final_confidence": round(confidence, 4),
+                        "retrieval_confidence": round(r_conf, 4),
+                        "plan_confidence": round(p_conf, 4),
+                        "execution_confidence": round(e_conf, 4),
+                        "result_confidence": round(q_conf, 4),
+                        "attempt": attempt,
+                        "max_attempts": MAX_ITERS,
+                    },
                 )
 
-                if self.settings.refuse_below_confidence and confidence < self.settings.agent_min_confidence:
+                if self.settings.refuse_below_confidence and r_conf < self.settings.agent_min_confidence:
                     log.info(
                         "Refused due to low confidence",
-                        extra={"confidence": confidence, "attempt": attempt, "max_attempts": MAX_ITERS},
+                        extra={"final_confidence": confidence, "retrieval_confidence": r_conf, "attempt": attempt, "max_attempts": MAX_ITERS},
                     )
                     return AgentResult(ok=False, message=INSUFFICIENT, confidence=confidence)
 
@@ -307,8 +455,11 @@ class AgentOrchestrator:
                 sys = (
                     "You are a query planning agent. You must ONLY propose plans using tables/columns that exist in the schema registry. "
                     "Never invent join keys; joins must follow the registry. "
+                    "Users may refer to columns by business names/aliases; map those to real columns from the schema. "
+                    "IMPORTANT: Choose the correct plan shape: "
+                    "(A) If the user asks for counts/sums/averages/min/max or grouping (e.g., 'by', 'per', 'average'), put those in metrics using an aggregation (SUM/AVG/MIN/MAX/COUNT) and list grouping fields in dimensions. "
+                    "(B) If the user asks to list rows / exceptions / missing or present values (e.g., 'missing', 'null', 'blank', 'present', 'show instruments where...'), return a row-level plan: put the columns to display in dimensions, leave metrics empty, and express conditions in filters using 'IS NULL' / 'IS NOT NULL' (or simple comparisons). "
                     "For dashboards, you may include either a single 'chart' object or a list of 'charts' (e.g., KPI + bar chart). "
-                    "Users may refer to columns by business names/aliases (e.g., 'UPB'); map those to real columns from the schema. "
                     "Output JSON only."
                 )
                 grounding = "\n\n".join(
@@ -337,14 +488,67 @@ class AgentOrchestrator:
 
                 plan = validate_plan(self.registry, raw_plan)
 
+                # Update confidence after plan validation
+                p_conf = self._compute_plan_confidence(question, plan)
+                confidence = self._compute_final_confidence(r_conf, p_conf, q_conf, e_conf)
+                last_confidence = confidence
+                log.info(
+                    "Confidence updated after plan",
+                    extra={
+                        "final_confidence": round(confidence, 4),
+                        "retrieval_confidence": round(r_conf, 4),
+                        "plan_confidence": round(p_conf, 4),
+                        "execution_confidence": round(e_conf, 4),
+                        "result_confidence": round(q_conf, 4),
+                        "attempt": attempt,
+                        "max_attempts": MAX_ITERS,
+                    },
+                )
+
+                # Update confidence after plan validation
+                p_conf = self._compute_plan_confidence(question, plan)
+                confidence = self._compute_final_confidence(r_conf, p_conf, q_conf, e_conf)
+                last_confidence = confidence
+                log.info(
+                    "Confidence updated after plan",
+                    extra={
+                        "final_confidence": round(confidence, 4),
+                        "retrieval_confidence": round(r_conf, 4),
+                        "plan_confidence": round(p_conf, 4),
+                        "execution_confidence": round(e_conf, 4),
+                        "result_confidence": round(q_conf, 4),
+                        "attempt": attempt,
+                        "max_attempts": MAX_ITERS,
+                    },
+                )
+
                 # --- ACT: Execute deterministic plan ---
+                log.info(f"USER QUESTION ::: {question}")
                 df = execute_plan(session, plan)
+
+                # Update confidence after execution + result sanity checks
+                e_conf = 1.0
+                q_conf = self._compute_result_confidence(df, plan)
+                confidence = self._compute_final_confidence(r_conf, p_conf, q_conf, e_conf)
+                last_confidence = confidence
+                log.info(
+                    "Final confidence computed",
+                    extra={
+                        "final_confidence": round(confidence, 4),
+                        "retrieval_confidence": round(r_conf, 4),
+                        "plan_confidence": round(p_conf, 4),
+                        "execution_confidence": round(e_conf, 4),
+                        "result_confidence": round(q_conf, 4),
+                        "attempt": attempt,
+                        "max_attempts": MAX_ITERS,
+                    },
+                )
 
                 # --- OBSERVE: empty results -> retry with simpler guidance ---
                 if df is None or df.empty:
                     feedback = (
                         "Execution returned no rows. Try a simpler aggregation, remove restrictive filters, "
-                        "reduce dimensions, or broaden date constraints. Ensure at least one metric is produced."
+                        "reduce dimensions, or broaden date constraints. If this is a row-level listing query, metrics may be empty; otherwise ensure at least one aggregated metric is produced."
                     )
                     log.info(
                         "Execution produced empty results; retrying",

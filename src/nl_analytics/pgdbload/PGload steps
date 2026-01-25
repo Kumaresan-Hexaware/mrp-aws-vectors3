@@ -1,0 +1,1 @@
+python src/nl_analytics/pgdbload/PgDBLoader.py data/uploads/PVR00500.nzf public PVR00500

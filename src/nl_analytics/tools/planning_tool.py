@@ -602,7 +602,13 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
         expr_canon = _canonicalize_expr_columns(expr_norm, all_cols, col_map)
 
         # Require at least one aggregate function somewhere in the expression.
+        # Exception: for row-level report queries, the model may accidentally put a raw column in metrics.
+        # If expr is a single column identifier (no function) and it's a known column, treat it as a dimension.
         if not _expr_contains_agg(expr_canon):
+            if mode == "report" and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", expr_canon) and expr_canon in all_cols:
+                if expr_canon not in dimensions:
+                    dimensions.append(expr_canon)
+                continue
             raise SchemaValidationError(
                 "Metric expr must contain an aggregation (SUM/AVG/MIN/MAX/COUNT)"
             )
