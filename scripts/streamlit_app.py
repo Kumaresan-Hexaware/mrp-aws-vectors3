@@ -682,7 +682,7 @@ def _reports_view() -> None:
     run = st.button("Generate Report", key="rep_run", type="primary")
 
     if run:
-        if not sess.available_tables():
+        if (settings.db_type or "duckdb").strip().lower() == "duckdb" and not sess.available_tables():
             st.error("No tables loaded. Please upload and ingest your .nzf file first in **Workspace**.")
             st.stop()
 
@@ -788,7 +788,7 @@ def _dashboards_view() -> None:
             st.success(f"Saved query id: {qid}")
 
     if run:
-        if not sess.available_tables():
+        if (settings.db_type or "duckdb").strip().lower() == "duckdb" and not sess.available_tables():
             st.error("No tables loaded. Please upload and ingest your .nzf file first in **Workspace**.")
             st.stop()
 
@@ -880,7 +880,7 @@ def _dashboards_view() -> None:
             if regen:
                 qid = options[sel]
                 sq = load_query(settings.saved_query_dir, qid)
-                if not sess.available_tables():
+                if (settings.db_type or "duckdb").strip().lower() == "duckdb" and not sess.available_tables():
                     st.error("No tables loaded. Please upload and ingest your .nzf file first in **Workspace**.")
                 else:
                     with st.spinner("Regenerating dashboard…"):
@@ -918,7 +918,7 @@ def _saved_view() -> None:
         qid = options[sel]
         sq = load_query(settings.saved_query_dir, qid)
         sess = st.session_state["data_session"]
-        if not sess.available_tables():
+        if (settings.db_type or "duckdb").strip().lower() == "duckdb" and not sess.available_tables():
             st.error("No tables loaded. Please upload and ingest your .nzf file first.")
             st.stop()
 

@@ -80,6 +80,17 @@ class SchemaRegistry:
                         if key:
                             self._global_alias.setdefault(key, []).append((tname, cname))
 
+        # Cache alias keys for fast fuzzy lookup (used by ColumnResolver).
+        # Keep both the raw lower() key and the normalized key in the same pool.
+        self._global_alias_keys: List[str] = sorted({k for k in self._global_alias.keys() if k})
+
+    def all_alias_keys(self) -> List[str]:
+        """Return all alias keys known to the registry.
+
+        Keys include canonical column names and configured business aliases (both lower() and normalized forms).
+        """
+        return list(self._global_alias_keys)
+
     @staticmethod
     def load(path: str = "schemas/schema_registry.yaml") -> "SchemaRegistry":
         p = Path(path)

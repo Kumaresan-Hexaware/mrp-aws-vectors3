@@ -418,7 +418,13 @@ class AgentOrchestrator:
                 retrieval = retrieve_schema_chunks(self.store, question, top_k=self.settings.rag_top_k)
 
                 # --- OBSERVE: confidence (retrieval + plan + execution + result quality) ---
-                data_avail = 1.0 if session.tables else 0.0
+                db_type = (self.settings.db_type or "duckdb").strip().lower()
+
+                # DuckDB requires workspace-loaded tables; Athena/Redshift can execute against remote catalogs.
+                if db_type == "duckdb":
+                    data_avail = 1.0 if session.tables else 0.0
+                else:
+                    data_avail = 1.0
 
                 # Retrieval confidence (existing behavior)
                 r_conf = float(retrieval.confidence * data_avail)

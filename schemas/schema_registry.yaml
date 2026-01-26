@@ -1,513 +1,4560 @@
 version: 1
-
 defaults:
-  file_extension: ".nzf"
-  delimiter: "Ç"
-  encoding: "latin-1"
+  file_extension: .nzf
+  delimiter: Ç
+  encoding: latin-1
   header: true
   trim_headers: true
   trim_values: true
   allow_additional_columns: true
-
 tables:
+  pvr00100:
+    file_patterns:
+    - '*PVR00100*.nzf'
+    - PVR00100.nzf
+    description: 'Run and scenario metadata for portfolio valuation runs. Use this table to understand which scenarios, dates,
+      and configuration were used for a given run and portfolio snapshot.
 
-  pvr00500:
-    file_patterns: [ "*PVR00500*.nzf", "PVR00500.nzf" ]
-
-    # Business meaning of the table (what it represents)
-    description: >
-      Instrument payment terms and structure settings (caps/floors, index, reset, schedule, conventions).
-      Use this table to analyze payment structure features and contractual terms.
-
-    # Helpful for NL queries: alternate names users might say
+      '
     aliases:
-      - "PVR00500"
-      - "portfolio valuation"
-      - "valuation results"
-      - "pvr"
-      - "interest rates"
-      - "rates"
-      - "payment terms"
-      - "coupon"
-      - "pricing"
-      - "oas"
-      - "price"
-      - "contract terms"
-
-    # Optional: high-level topics/tags for retrieval
+    - PVR00100
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - scenario
+    - scenarios
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - prepayment
+    - cpr
+    - PVR 00100
+    primary_key:
+    - DmrRunID
     business_tags:
-      - "payment-structure"
-      - "portfolio"
-      - "pricing"
-      - "rates"
-      - "terms"
-      - "valuation"
-
-    columns:
-      InstrumentID:
-        type: string
-        description: "Instrument id."
-        aliases: [ "pool", "security", "instrument", "instrument id" ]
-
-      PaymentStructureID:
-        type: string
-        description: "Payment structure id."
-        aliases: [ "ps id", "structure id", "payment structure", "payment structure id" ]
-
-      SubsqntPayRecastMonth:
-        type: int
-        description: "Subsqnt pay recast month."
-        aliases: [ "subsqnt pay recast month" ]
-
-      PaymentTypeCode:
-        type: string
-        description: "Payment type code."
-        aliases: [ "code", "payment type", "payment type code" ]
-
-      LifeCapPTCpnRtExclGfee:
-        type: string
-        description: "Life cap ptcpn rt excl gfee."
-        aliases: [ "life cap ptcpn rt excl gfee" ]
-
-      LifeFlrPTCpnRtExclGfee:
-        type: string
-        description: "Life flr ptcpn rt excl gfee."
-        aliases: [ "life flr ptcpn rt excl gfee" ]
-
-      SubsqntPayAdjFreqMonth:
-        type: int
-        description: "Subsqnt pay adj freq month."
-        aliases: [ "subsqnt pay adj freq month" ]
-
-      InstrumentCouponTypeCode:
-        type: float
-        description: "Instrument coupon type code."
-        aliases: [ "code", "instrument coupon type", "instrument coupon type code" ]
-
-      PassThruCpnRateInclGFee:
-        type: float
-        description: "Pass thru cpn rate incl gfee."
-        aliases: [ "pass thru cpn rate incl gfee" ]
-
-      PassThroughCouponRate:
-        type: float
-        description: "Pass through coupon rate."
-        aliases: [ "pass through coupon rate" ]
-
-      InitialPaymentRecastMonth:
-        type: int
-        description: "Initial payment recast month."
-        aliases: [ "initial payment recast month" ]
-
-      PaymentHistory:
-        type: string
-        description: "Payment history."
-        aliases: [ "payment history" ]
-
-      PaymentFrequencyTypeCode:
-        type: string
-        description: "Payment frequency type code."
-        aliases: [ "code", "payment frequency type", "payment frequency type code" ]
-
-      PaymentDelayDays:
-        type: int
-        description: "Payment delay days."
-        aliases: [ "payment delay days" ]
-
-      PaymentCapRate:
-        type: float
-        description: "Payment cap rate."
-        aliases: [ "payment cap rate" ]
-
-      AmortizationTerm:
-        type: int
-        description: "Amortization term."
-        aliases: [ "amortization term" ]
-
-      AmortizationTypeCode:
-        type: string
-        description: "Amortization type code."
-        aliases: [ "code", "amortization type", "amortization type code" ]
-
-      DayCountCode:
-        type: int
-        description: "Day count code."
-        aliases: [ "code", "day count", "day count code" ]
-
-      FinalPaymentDate:
-        type: date
-        description: "Final payment date."
-        aliases: [ "date", "final payment date" ]
-
-      GrossMargin:
-        type: float
-        description: "Gross margin."
-        aliases: [ "gross margin" ]
-
-      ARMIndexCode:
-        type: string
-        description: "Armindex code."
-        aliases: [ "code", "armindex", "armindex code" ]
-
-      ARMIndexDescription:
-        type: string
-        description: "Armindex description."
-        aliases: [ "armindex description" ]
-
-      ARMIndexSource:
-        type: string
-        description: "Armindex source."
-        aliases: [ "armindex source" ]
-
-      InitialPaymentAdjMonth:
-        type: int
-        description: "Initial payment adj month."
-        aliases: [ "initial payment adj month" ]
-
-      InitialRateChangeCapRate:
-        type: float
-        description: "Initial rate change cap rate."
-        aliases: [ "initial rate change cap rate" ]
-
-      InitialRateResetPeriod:
-        type: float
-        description: "Initial rate reset period."
-        aliases: [ "initial rate reset period" ]
-
-      LifeCapCouponRate:
-        type: float
-        description: "Life cap coupon rate."
-        aliases: [ "life cap coupon rate" ]
-
-      LifeFloorCouponRate:
-        type: float
-        description: "Life floor coupon rate."
-        aliases: [ "life floor coupon rate" ]
-
-      LookBackPeriod:
-        type: string
-        description: "Look back period."
-        aliases: [ "look back period" ]
-
-      NetMargin:
-        type: float
-        description: "Net margin."
-        aliases: [ "net margin" ]
-
-      NotionalBalanceAmount:
-        type: float
-        description: "Notional balance amount."
-        aliases: [ "amt", "value", "amount", "notional balance amt", "notional balance amount" ]
-
-      NotionalBalanceCode:
-        type: float
-        description: "Notional balance code."
-        aliases: [ "code", "notional balance", "notional balance code" ]
-
-      PayDay:
-        type: string
-        description: "Pay day."
-        aliases: [ "pay day" ]
-
-      SubsqntRtResetFreqMonth:
-        type: int
-        description: "Subsqnt rt reset freq month."
-        aliases: [ "subsqnt rt reset freq month" ]
-
-      SubsqntRateChangeCapRate:
-        type: float
-        description: "Subsqnt rate change cap rate."
-        aliases: [ "subsqnt rate change cap rate" ]
-
-      TradeAmount:
-        type: float
-        description: "Trade amount."
-        aliases: [ "amt", "value", "amount", "trade amt", "trade amount" ]
-
-      ConvertibleIndicator:
-        type: bool
-        description: "Convertible indicator."
-        aliases: [ "convertible indicator" ]
-
-      ConversionDate:
-        type: date
-        description: "Conversion date."
-        aliases: [ "date", "conversion date" ]
-
-      FirstRateResetDate:
-        type: date
-        description: "First rate reset date."
-        aliases: [ "date", "first rate reset date" ]
-
-      FirstPaymentDate:
-        type: date
-        description: "First payment date."
-        aliases: [ "date", "first payment date" ]
-
-      IndexType:
-        type: string
-        description: "Index type."
-        aliases: [ "index type" ]
-
-      IndexTerm:
-        type: int
-        description: "Index term."
-        aliases: [ "index term" ]
-
-      InterestCurrencyCode:
-        type: string
-        description: "Interest currency code."
-        aliases: [ "code", "interest currency", "interest currency code" ]
-
-      InterestAdjConventioLifeCapIndicator:
-        type: bool
-        description: "Interest adj conventio life cap indicator."
-        aliases: [ "interest adj conventio life cap indicator" ]
-
-      LiabLifeCapCouponRate:
-        type: float
-        description: "Liab life cap coupon rate."
-        aliases: [ "liab life cap coupon rate" ]
-
-      LiabLifeFloorCouponRate:
-        type: float
-        description: "Liab life floor coupon rate."
-        aliases: [ "liab life floor coupon rate" ]
-
-      NetProceeds:
-        type: string
-        description: "Net proceeds."
-        aliases: [ "net proceeds" ]
-
-      PaymentStructureTypeCode:
-        type: string
-        description: "Payment structure type code."
-        aliases: [ "code", "type code", "payment type", "structure type", "payment structure type", "payment structure type code" ]
-
-      PaymentCalendarCode:
-        type: string
-        description: "Payment calendar code."
-        aliases: [ "code", "payment calendar", "payment calendar code" ]
-
-      PaymentRollConvention:
-        type: string
-        description: "Payment roll convention."
-        aliases: [ "payment roll convention" ]
-
-      PaymentMethodCode:
-        type: string
-        description: "Payment method code."
-        aliases: [ "code", "payment method", "payment method code" ]
-
-      PrincipalCurrencyCode:
-        type: string
-        description: "Principal currency code."
-        aliases: [ "code", "principal currency", "principal currency code" ]
-
-      RangeAccrualProvisionInd:
-        type: bool
-        description: "Range accrual provision ind."
-        aliases: [ "range accrual provision ind" ]
-
-      RangeNoteSuspensionPeriod:
-        type: string
-        description: "Range note suspension period."
-        aliases: [ "range note suspension period" ]
-
-      RangeNoteObsPeriod:
-        type: string
-        description: "Range note obs period."
-        aliases: [ "range note obs period" ]
-
-      RangeNoteObsCalendarCode:
-        type: string
-        description: "Range note obs calendar code."
-        aliases: [ "code", "range note obs calendar", "range note obs calendar code" ]
-
-      ResetCalendarCode:
-        type: string
-        description: "Reset calendar code."
-        aliases: [ "code", "reset calendar", "reset calendar code" ]
-
-      ResetRollConventionCode:
-        type: string
-        description: "Reset roll convention code."
-        aliases: [ "code", "reset roll convention", "reset roll convention code" ]
-
-      ResetMethodCode:
-        type: string
-        description: "Reset method code."
-        aliases: [ "code", "reset method", "reset method code" ]
-
-      Coefficient:
-        type: string
-        description: "Coefficient."
-        aliases: [ "coefficient" ]
-
-      BLMAmortizationTerm:
-        type: int
-        description: "Blmamortization term."
-        aliases: [ "blmamortization term" ]
-
-      BLMAmortizationTypeCode:
-        type: string
-        description: "Blmamortization type code."
-        aliases: [ "code", "blmamortization type", "blmamortization type code" ]
-
-      BLMPassThroughCouponRate:
-        type: float
-        description: "Blmpass through coupon rate."
-        aliases: [ "blmpass through coupon rate" ]
-
-      LoanServicingFeeRate:
-        type: float
-        description: "Loan servicing fee rate."
-        aliases: [ "loan servicing fee rate" ]
-
-      BLMBorrowerNoteRate:
-        type: float
-        description: "Blmborrower note rate."
-        aliases: [ "blmborrower note rate" ]
-
-      PostModBorrowerNoteRate:
-        type: float
-        description: "Post mod borrower note rate."
-        aliases: [ "post mod borrower note rate" ]
-
-      BestExCouponRate:
-        type: float
-        description: "Best ex coupon rate."
-        aliases: [ "best ex coupon rate" ]
-
-      BuyUpPrice:
-        type: float
-        description: "Buy up price."
-        aliases: [ "buy up price" ]
-
-      BuyDownPrice:
-        type: float
-        description: "Buy down price."
-        aliases: [ "buy down price" ]
-
-      BuyUpBps:
-        type: float
-        description: "Buy up bps."
-        aliases: [ "buy up bps" ]
-
-      BuyDownBps:
-        type: string
-        description: "Buy down bps."
-        aliases: [ "buy down bps" ]
-
-      RepositionTradePrice:
-        type: float
-        description: "Reposition trade price."
-        aliases: [ "reposition trade price" ]
-
-      FrontStubEndDate:
-        type: date
-        description: "Front stub end date."
-        aliases: [ "date", "front stub end date" ]
-
-      BackStubStartDate:
-        type: date
-        description: "Back stub start date."
-        aliases: [ "date", "back stub start date" ]
-
-    # Optional: examples of how the business uses this table (helps NL/RAG)
-    examples:
-      - "Count instruments by portfolio for a given run/date using PVR00500"
-      - "Show key metrics grouped by portfolio or instrument from PVR00500"
-      - "Filter by scenario/date fields and summarize results from PVR00500"
-
-  pvr00600:
-    file_patterns: [ "*PVR00600*.nzf", "PVR00600.nzf" ]
-
-    # Business meaning of the table (what it represents)
-    description: >
-      Instrument-level analytics outputs for a valuation run (e.g., OAS, price, duration, WAL, CPR).
-      Use this table to analyze pricing and risk measures by instrument and portfolio.
-
-    # Helpful for NL queries: alternate names users might say
-    aliases:
-      - "PVR00600"
-      - "portfolio valuation"
-      - "valuation results"
-      - "pvr"
-      - "pricing"
-      - "oas"
-      - "price"
-      - "analytics"
-      - "risk measures"
-      - "valuation analytics"
-
-    primary_key: [ "DmrRunID", "PortfolioID", "InstrumentID", "RunID" ]
-
-    # Optional: high-level topics/tags for retrieval
-    business_tags:
-      - "analytics"
-      - "portfolio"
-      - "pricing"
-      - "risk"
-      - "valuation"
-
+    - as-of
+    - payment-structure
+    - portfolio
+    - prepayment
+    - rates
+    - run-metadata
+    - scenarios
+    - valuation
     columns:
       DmrRunID:
         type: string
-        description: "Dmr run id."
-        aliases: [ "run id", "dmr run", "batch id", "dmr run id" ]
-
+        description: Dmr run id.
+        aliases:
+        - run id
+        - dmr run
+        - batch id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DmrRunID
+        - dmr_run_id
+        - dmr-run-id
+        - dri
       PortfolioID:
         type: string
-        description: "Portfolio id."
-        aliases: [ "book", "account", "portfolio", "portfolio id" ]
-
-      InstrumentID:
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: Portfolio date.
+        aliases:
+        - date
+        - portfolio date
+        - portfolio as of date
+        - PortfolioDate
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+        - as of portfolio date
+      ValuationDate:
+        type: date
+        description: Valuation date.
+        aliases:
+        - date
+        - valuation date
+        - ValuationDate
+        - valuation_date
+        - valuation-date
+        - vd
+        - valuation date date
+        - as of valuation date
+      InterestRateDate:
+        type: date
+        description: Interest rate date.
+        aliases:
+        - date
+        - interest rate date
+        - InterestRateDate
+        - interest_rate_date
+        - interest-rate-date
+        - ird
+        - interest rate date date
+        - as of interest rate date
+      InterestRateScenario:
         type: string
-        description: "Instrument id."
-        aliases: [ "pool",  "security", "instrument", "instrument id" ]
+        description: Interest rate scenario.
+        aliases:
+        - interest rate scenario
+        - InterestRateScenario
+        - interest_rate_scenario
+        - interest-rate-scenario
+        - irs
+      VolatilityDate:
+        type: date
+        description: Volatility date.
+        aliases:
+        - date
+        - volatility date
+        - VolatilityDate
+        - volatility_date
+        - volatility-date
+        - vd
+        - volatility date date
+        - as of volatility date
+      VolatilityScenario:
+        type: string
+        description: Volatility scenario.
+        aliases:
+        - volatility scenario
+        - VolatilityScenario
+        - volatility_scenario
+        - volatility-scenario
+        - vs
+      PrepaymentScenario:
+        type: string
+        description: Prepayment scenario.
+        aliases:
+        - prepayment scenario
+        - PrepaymentScenario
+        - prepayment_scenario
+        - prepayment-scenario
+        - ps
+      SpreadScenario:
+        type: string
+        description: Spread scenario.
+        aliases:
+        - spread scenario
+        - SpreadScenario
+        - spread_scenario
+        - spread-scenario
+        - ss
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR00100
+    - Show key metrics grouped by portfolio or instrument from PVR00100
+    - Filter by scenario/date fields and summarize results from PVR00100
+  pvr00200:
+    file_patterns:
+    - '*PVR00200*.nzf'
+    - PVR00200.nzf
+    description: 'Run-level metadata for PRiMA portfolio valuation (scenario selection, run dates, versions). Use this table
+      to audit run configuration and scenario versions used in a valuation run.
 
+      '
+    aliases:
+    - PVR00200
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - scenario
+    - scenarios
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - prepayment
+    - cpr
+    - PVR 00200
+    primary_key:
+    - RunID
+    business_tags:
+    - payment-structure
+    - portfolio
+    - prepayment
+    - rates
+    - run-metadata
+    - scenarios
+    - valuation
+    columns:
       RunID:
         type: string
-        description: "Run id."
-        aliases: [ "run", "run id" ]
+        description: Run id.
+        aliases:
+        - run
+        - run id
+        - RunID
+        - run_id
+        - run-id
+        - ri
+        - run id identifier
+        - run id id
+      RunName:
+        type: string
+        description: Run name.
+        aliases:
+        - name
+        - run name
+        - RunName
+        - run_name
+        - run-name
+        - rn
+      RunDescription:
+        type: string
+        description: Run description.
+        aliases:
+        - description
+        - run description
+        - RunDescription
+        - run_description
+        - run-description
+        - rd
+      RunUserID:
+        type: string
+        description: Run user id.
+        aliases:
+        - run user
+        - run user id
+        - RunUserID
+        - run_user_id
+        - run-user-id
+        - rui
+        - run user id identifier
+        - run user id id
+      VnVersion:
+        type: int
+        description: Vn version.
+        aliases:
+        - vn version
+        - VnVersion
+        - vn_version
+        - vn-version
+        - vv
+      PrimaVersion:
+        type: int
+        description: Prima version.
+        aliases:
+        - prima version
+        - PrimaVersion
+        - prima_version
+        - prima-version
+        - pv
+      PrimaConfiguration:
+        type: string
+        description: Prima configuration.
+        aliases:
+        - prima configuration
+        - PrimaConfiguration
+        - prima_configuration
+        - prima-configuration
+        - pc
+      InterestRateScenario:
+        type: float
+        description: Interest rate scenario.
+        aliases:
+        - ir scenario
+        - rate scenario
+        - interest rate scenario
+        - InterestRateScenario
+        - interest_rate_scenario
+        - interest-rate-scenario
+        - irs
+      VolatilityScenario:
+        type: string
+        description: Volatility scenario.
+        aliases:
+        - volatility scenario
+        - VolatilityScenario
+        - volatility_scenario
+        - volatility-scenario
+        - vs
+      PrepaymentScenario:
+        type: string
+        description: Prepayment scenario.
+        aliases:
+        - prepayment scenario
+        - PrepaymentScenario
+        - prepayment_scenario
+        - prepayment-scenario
+        - ps
+      HpaScenario:
+        type: string
+        description: Hpa scenario.
+        aliases:
+        - hpa scenario
+        - HpaScenario
+        - hpa_scenario
+        - hpa-scenario
+        - hs
+      InterestRateDate:
+        type: date
+        description: Interest rate date.
+        aliases:
+        - date
+        - interest rate date
+        - InterestRateDate
+        - interest_rate_date
+        - interest-rate-date
+        - ird
+        - interest rate date date
+        - as of interest rate date
+      VolatilityDate:
+        type: date
+        description: Volatility date.
+        aliases:
+        - date
+        - volatility date
+        - VolatilityDate
+        - volatility_date
+        - volatility-date
+        - vd
+        - volatility date date
+        - as of volatility date
+      HpiAsOfDate:
+        type: date
+        description: Hpi as of date.
+        aliases:
+        - date
+        - hpi as of date
+        - HpiAsOfDate
+        - hpi_as_of_date
+        - hpi-as-of-date
+        - had
+        - hpi as of date date
+        - as of hpi as of date
+      HpiUtilityDate:
+        type: date
+        description: Hpi utility date.
+        aliases:
+        - date
+        - hpi utility date
+        - HpiUtilityDate
+        - hpi_utility_date
+        - hpi-utility-date
+        - hud
+        - hpi utility date date
+        - as of hpi utility date
+      ValuationDate:
+        type: date
+        description: Valuation date.
+        aliases:
+        - date
+        - valuation date
+        - ValuationDate
+        - valuation_date
+        - valuation-date
+        - vd
+        - valuation date date
+        - as of valuation date
+      RunDate:
+        type: date
+        description: Run date.
+        aliases:
+        - date
+        - run date
+        - RunDate
+        - run_date
+        - run-date
+        - rd
+        - run date date
+        - as of run date
+      SpreadScenario:
+        type: float
+        description: Spread scenario.
+        aliases:
+        - spread scenario
+        - SpreadScenario
+        - spread_scenario
+        - spread-scenario
+        - ss
+      ProductSegmentsFilter:
+        type: string
+        description: Product segments filter.
+        aliases:
+        - product segments filter
+        - ProductSegmentsFilter
+        - product_segments_filter
+        - product-segments-filter
+        - psf
+      InterestRateScenarioVersion:
+        type: float
+        description: Interest rate scenario version.
+        aliases:
+        - interest rate scenario version
+        - InterestRateScenarioVersion
+        - interest_rate_scenario_version
+        - interest-rate-scenario-version
+        - irsv
+      HpaScenarioVersion:
+        type: int
+        description: Hpa scenario version.
+        aliases:
+        - hpa scenario version
+        - HpaScenarioVersion
+        - hpa_scenario_version
+        - hpa-scenario-version
+        - hsv
+      VolatilityScenarioVersion:
+        type: int
+        description: Volatility scenario version.
+        aliases:
+        - volatility scenario version
+        - VolatilityScenarioVersion
+        - volatility_scenario_version
+        - volatility-scenario-version
+        - vsv
+      PrepaymentScenarioVersion:
+        type: int
+        description: Prepayment scenario version.
+        aliases:
+        - prepayment scenario version
+        - PrepaymentScenarioVersion
+        - prepayment_scenario_version
+        - prepayment-scenario-version
+        - psv
+      PrimaConfigurationVersion:
+        type: int
+        description: Prima configuration version.
+        aliases:
+        - prima configuration version
+        - PrimaConfigurationVersion
+        - prima_configuration_version
+        - prima-configuration-version
+        - pcv
+      SpreadScenarioVersion:
+        type: float
+        description: Spread scenario version.
+        aliases:
+        - spread scenario version
+        - SpreadScenarioVersion
+        - spread_scenario_version
+        - spread-scenario-version
+        - ssv
+      ProductSegmentsFilterVersion:
+        type: int
+        description: Product segments filter version.
+        aliases:
+        - product segments filter version
+        - ProductSegmentsFilterVersion
+        - product_segments_filter_version
+        - product-segments-filter-version
+        - psfv
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR00200
+    - Show key metrics grouped by portfolio or instrument from PVR00200
+    - Filter by scenario/date fields and summarize results from PVR00200
+  pvr00300:
+    file_patterns:
+    - '*PVR00300*.nzf'
+    - PVR00300.nzf
+    description: 'Instrument-level pricing and prepayment model outputs used in valuation (OAS, price, factors, errors). Use
+      this table to analyze pricing inputs/outputs and modeling diagnostics by aggregated instrument.
 
+      '
+    aliases:
+    - PVR00300
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - pricing
+    - oas
+    - price
+    - prepayment
+    - PVR 00300
+    primary_key:
+    - AggrInstrumentID
+    business_tags:
+    - analytics
+    - payment-structure
+    - portfolio
+    - prepayment
+    - pricing
+    - rates
+    - valuation
+    columns:
+      AggrInstrumentID:
+        type: string
+        description: Aggr instrument id.
+        aliases:
+        - aggr instrument
+        - aggr instrument id
+        - AggrInstrumentID
+        - aggr_instrument_id
+        - aggr-instrument-id
+        - aii
+        - aggr instrument id identifier
+        - aggr instrument id id
+      PrepaymentModel:
+        type: string
+        description: Prepayment model.
+        aliases:
+        - prepayment model
+        - PrepaymentModel
+        - prepayment_model
+        - prepayment-model
+        - pm
       Oas:
         type: float
-        description: "Oas."
-        aliases: [ "oas" ]
-
+        description: Oas.
+        aliases:
+        - oas
+        - option adjusted spread
+        - option-adjusted spread
+        - spread
+        - oas spread
+        - o
       Price:
         type: float
-        description: "Price."
-        aliases: [ "price" ]
+        description: Price.
+        aliases:
+        - price
+        - model price
+        - clean price
+        - valuation price
+        - base price
+        - p
+      InputOas:
+        type: float
+        description: Input oas.
+        aliases:
+        - input oas
+        - InputOas
+        - input_oas
+        - input-oas
+        - io
+      InputOasTypeCode:
+        type: float
+        description: Input oas type code.
+        aliases:
+        - code
+        - input oas type
+        - input oas type code
+        - InputOasTypeCode
+        - input_oas_type_code
+        - input-oas-type-code
+        - iotc
+        - input oas type code code
+      EstimatedFactor:
+        type: float
+        description: Estimated factor.
+        aliases:
+        - estimated factor
+        - EstimatedFactor
+        - estimated_factor
+        - estimated-factor
+        - ef
+      LagOneFactor:
+        type: float
+        description: Lag one factor.
+        aliases:
+        - lag one factor
+        - LagOneFactor
+        - lag_one_factor
+        - lag-one-factor
+        - lof
+      LagTwoFactor:
+        type: float
+        description: Lag two factor.
+        aliases:
+        - lag two factor
+        - LagTwoFactor
+        - lag_two_factor
+        - lag-two-factor
+        - ltf
+      LagOnePrepayPenaltyRate:
+        type: float
+        description: Lag one prepay penalty rate.
+        aliases:
+        - lag one prepay penalty rate
+        - LagOnePrepayPenaltyRate
+        - lag_one_prepay_penalty_rate
+        - lag-one-prepay-penalty-rate
+        - loppr
+        - lag one prepay penalty rate rate
+        - lag one prepay penalty rate %
+      LagTwoPrepayPenaltyRate:
+        type: float
+        description: Lag two prepay penalty rate.
+        aliases:
+        - lag two prepay penalty rate
+        - LagTwoPrepayPenaltyRate
+        - lag_two_prepay_penalty_rate
+        - lag-two-prepay-penalty-rate
+        - ltppr
+        - lag two prepay penalty rate rate
+        - lag two prepay penalty rate %
+      PaydownLagOneAmortFactor:
+        type: float
+        description: Paydown lag one amort factor.
+        aliases:
+        - paydown lag one amort factor
+        - PaydownLagOneAmortFactor
+        - paydown_lag_one_amort_factor
+        - paydown-lag-one-amort-factor
+        - ploaf
+      PaydownLagTwoAmortFactor:
+        type: float
+        description: Paydown lag two amort factor.
+        aliases:
+        - paydown lag two amort factor
+        - PaydownLagTwoAmortFactor
+        - paydown_lag_two_amort_factor
+        - paydown-lag-two-amort-factor
+        - pltaf
+      PaydownLagOnePrepayFactor:
+        type: float
+        description: Paydown lag one prepay factor.
+        aliases:
+        - paydown lag one prepay factor
+        - PaydownLagOnePrepayFactor
+        - paydown_lag_one_prepay_factor
+        - paydown-lag-one-prepay-factor
+        - plopf
+      PaydownLagTwoPrepayFactor:
+        type: float
+        description: Paydown lag two prepay factor.
+        aliases:
+        - paydown lag two prepay factor
+        - PaydownLagTwoPrepayFactor
+        - paydown_lag_two_prepay_factor
+        - paydown-lag-two-prepay-factor
+        - pltpf
+      PaydownLagOneDefaultFactor:
+        type: float
+        description: Paydown lag one default factor.
+        aliases:
+        - paydown lag one default factor
+        - PaydownLagOneDefaultFactor
+        - paydown_lag_one_default_factor
+        - paydown-lag-one-default-factor
+        - plodf
+      PaydownLagTwoDefaultFactor:
+        type: float
+        description: Paydown lag two default factor.
+        aliases:
+        - paydown lag two default factor
+        - PaydownLagTwoDefaultFactor
+        - paydown_lag_two_default_factor
+        - paydown-lag-two-default-factor
+        - pltdf
+      LagOneLossFactor:
+        type: float
+        description: Lag one loss factor.
+        aliases:
+        - lag one loss factor
+        - LagOneLossFactor
+        - lag_one_loss_factor
+        - lag-one-loss-factor
+        - lolf
+      LagTwoLossFactor:
+        type: float
+        description: Lag two loss factor.
+        aliases:
+        - lag two loss factor
+        - LagTwoLossFactor
+        - lag_two_loss_factor
+        - lag-two-loss-factor
+        - ltlf
+      MethodologyName:
+        type: string
+        description: Methodology name.
+        aliases:
+        - methodology name
+        - MethodologyName
+        - methodology_name
+        - methodology-name
+        - mn
+      PricingSource:
+        type: string
+        description: Pricing source.
+        aliases:
+        - pricing source
+        - PricingSource
+        - pricing_source
+        - pricing-source
+        - ps
+      PricingDate:
+        type: date
+        description: Pricing date.
+        aliases:
+        - date
+        - pricing date
+        - PricingDate
+        - pricing_date
+        - pricing-date
+        - pd
+        - pricing date date
+        - as of pricing date
+      BenchMarkRunID:
+        type: string
+        description: Bench mark run id.
+        aliases:
+        - bench mark run
+        - bench mark run id
+        - BenchMarkRunID
+        - bench_mark_run_id
+        - bench-mark-run-id
+        - bmri
+        - bench mark run id identifier
+        - bench mark run id id
+      MappingGridCoordinate:
+        type: string
+        description: Mapping grid coordinate.
+        aliases:
+        - mapping grid coordinate
+        - MappingGridCoordinate
+        - mapping_grid_coordinate
+        - mapping-grid-coordinate
+        - mgc
+      IntexCduPath:
+        type: string
+        description: Intex cdu path.
+        aliases:
+        - intex cdu path
+        - IntexCduPath
+        - intex_cdu_path
+        - intex-cdu-path
+        - icp
+      IntexCdiPath:
+        type: string
+        description: Intex cdi path.
+        aliases:
+        - intex cdi path
+        - IntexCdiPath
+        - intex_cdi_path
+        - intex-cdi-path
+        - icp
+      IntexDataTime:
+        type: string
+        description: Intex data time.
+        aliases:
+        - intex data time
+        - IntexDataTime
+        - intex_data_time
+        - intex-data-time
+        - idt
+      ModelingProductType:
+        type: string
+        description: Modeling product type.
+        aliases:
+        - modeling product type
+        - ModelingProductType
+        - modeling_product_type
+        - modeling-product-type
+        - mpt
+      ModelingError:
+        type: string
+        description: Modeling error.
+        aliases:
+        - modeling error
+        - ModelingError
+        - modeling_error
+        - modeling-error
+        - me
+      CfError:
+        type: string
+        description: Cf error.
+        aliases:
+        - cf error
+        - CfError
+        - cf_error
+        - cf-error
+        - ce
+      OasError:
+        type: float
+        description: Oas error.
+        aliases:
+        - oas error
+        - OasError
+        - oas_error
+        - oas-error
+        - oe
+      VNMLFileName:
+        type: string
+        description: Vnmlfile name.
+        aliases:
+        - vnmlfile name
+        - VNMLFileName
+        - vnmlfile_name
+        - vnmlfile-name
+        - vn
+      OasAdjustment:
+        type: float
+        description: Oas adjustment.
+        aliases:
+        - oas adjustment
+        - OasAdjustment
+        - oas_adjustment
+        - oas-adjustment
+        - oa
+      PrepaymentChooserType:
+        type: string
+        description: Prepayment chooser type.
+        aliases:
+        - prepayment chooser type
+        - PrepaymentChooserType
+        - prepayment_chooser_type
+        - prepayment-chooser-type
+        - pct
+      UseAdCurrentCoupon:
+        type: float
+        description: Use ad current coupon.
+        aliases:
+        - use ad current coupon
+        - UseAdCurrentCoupon
+        - use_ad_current_coupon
+        - use-ad-current-coupon
+        - uacc
+      UseAdHpi:
+        type: string
+        description: Use ad hpi.
+        aliases:
+        - use ad hpi
+        - UseAdHpi
+        - use_ad_hpi
+        - use-ad-hpi
+        - uah
+      OriginalActiveBorrowerFraction:
+        type: string
+        description: Original active borrower fraction.
+        aliases:
+        - original active borrower fraction
+        - OriginalActiveBorrowerFraction
+        - original_active_borrower_fraction
+        - original-active-borrower-fraction
+        - oabf
+      CurrentActiveBorrowerFraction:
+        type: string
+        description: Current active borrower fraction.
+        aliases:
+        - current active borrower fraction
+        - CurrentActiveBorrowerFraction
+        - current_active_borrower_fraction
+        - current-active-borrower-fraction
+        - cabf
+      MethodologyType:
+        type: string
+        description: Methodology type.
+        aliases:
+        - methodology type
+        - MethodologyType
+        - methodology_type
+        - methodology-type
+        - mt
+      MappingLevel:
+        type: string
+        description: Mapping level.
+        aliases:
+        - mapping level
+        - MappingLevel
+        - mapping_level
+        - mapping-level
+        - ml
+      CurrentUPB:
+        type: float
+        description: Current upb.
+        aliases:
+        - current upb
+        - CurrentUPB
+        - current_upb
+        - current-upb
+        - cu
+      PricingSpreadAmount:
+        type: float
+        description: Pricing spread amount.
+        aliases:
+        - amt
+        - value
+        - amount
+        - pricing spread amt
+        - pricing spread amount
+        - PricingSpreadAmount
+        - pricing_spread_amount
+        - pricing-spread-amount
+        - psa
+        - pricing spread amount amount
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR00300
+    - Show key metrics grouped by portfolio or instrument from PVR00300
+    - Filter by scenario/date fields and summarize results from PVR00300
+  pvr00400:
+    file_patterns:
+    - '*PVR00400*.nzf'
+    - '*pvr00400*.nzf'
+    - PVR00400.nzf
+    - PVR00400_synthetic_1000.nzf
+    description: 'Instrument master attributes within a portfolio context (e.g., CUSIP, deal, dates, balances). Use this table
+      for instrument-level rollups and portfolio composition analysis.
 
+      '
+    aliases:
+    - PVR00400
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - instrument master
+    - portfolio composition
+    - instrument attributes
+    - PVR 00400
+    primary_key:
+    - InstrumentID
+    - PortfolioID
+    business_tags:
+    - balances
+    - instruments
+    - portfolio
+    - valuation
+    columns:
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - Portfolio
+        - Portfolio Id
+        - Portfolio Identifier
+        - account
+        - book
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+      CUSIP:
+        type: string
+        description: Cusip.
+        aliases:
+        - cusip
+        - c
+        - cusip field 3
+        - cusip field 4
+        - cusip field 5
+      DealName:
+        type: string
+        description: Deal name.
+        aliases:
+        - deal name
+        - DealName
+        - deal_name
+        - deal-name
+        - dn
+      IssueDate:
+        type: date
+        description: Issue date.
+        aliases:
+        - date
+        - issue date
+        - IssueDate
+        - issue_date
+        - issue-date
+        - id
+        - issue date date
+        - as of issue date
+      MaturityDate:
+        type: date
+        description: Maturity date.
+        aliases:
+        - date
+        - maturity date
+        - MaturityDate
+        - maturity_date
+        - maturity-date
+        - md
+        - maturity date date
+        - as of maturity date
+      CurrentUPBAmt:
+        type: float
+        description: Current upbamt.
+        aliases:
+        - UPB
+        - Total UPB
+        - Current UPB
+        - Unpaid Principal Balance
+        - Current Unpaid Principal Balance
+        - Outstanding Principal
+        - CurrentUPBAmt
+        - current upbamt
+        - current_upbamt
+        - current-upbamt
+      OriginalAmount:
+        type: float
+        description: Original amount.
+        aliases:
+        - amt
+        - value
+        - amount
+        - original amt
+        - original amount
+        - OriginalAmount
+        - original_amount
+        - original-amount
+        - oa
+        - original amount amount
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR00400
+    - Show key metrics grouped by portfolio or instrument from PVR00400
+    - Filter by scenario/date fields and summarize results from PVR00400
+  pvr00500:
+    file_patterns:
+    - '*PVR00500*.nzf'
+    - PVR00500.nzf
+    description: 'Instrument payment terms and structure settings (caps/floors, index, reset, schedule, conventions). Use
+      this table to analyze payment structure features and contractual terms.
+
+      '
+    aliases:
+    - PVR00500
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - pricing
+    - oas
+    - price
+    - contract terms
+    - PVR 00500
+    business_tags:
+    - payment-structure
+    - portfolio
+    - pricing
+    - rates
+    - terms
+    - valuation
+    columns:
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      PaymentStructureID:
+        type: string
+        description: Payment structure id.
+        aliases:
+        - ps id
+        - structure id
+        - payment structure
+        - payment structure id
+        - payment struct id
+        - pmt structure id
+        - paymentstructureid
+        - payment_structure_id
+        - payment-structure-id
+        - psi
+      SubsqntPayRecastMonth:
+        type: int
+        description: Subsqnt pay recast month.
+        aliases:
+        - subsqnt pay recast month
+        - SubsqntPayRecastMonth
+        - subsqnt_pay_recast_month
+        - subsqnt-pay-recast-month
+        - sprm
+      PaymentTypeCode:
+        type: string
+        description: Payment type code.
+        aliases:
+        - code
+        - payment type
+        - payment type code
+        - PaymentTypeCode
+        - payment_type_code
+        - payment-type-code
+        - ptc
+        - payment type code code
+      LifeCapPTCpnRtExclGfee:
+        type: string
+        description: Life cap ptcpn rt excl gfee.
+        aliases:
+        - life cap ptcpn rt excl gfee
+        - LifeCapPTCpnRtExclGfee
+        - life_cap_ptcpn_rt_excl_gfee
+        - life-cap-ptcpn-rt-excl-gfee
+        - lcpreg
+      LifeFlrPTCpnRtExclGfee:
+        type: string
+        description: Life flr ptcpn rt excl gfee.
+        aliases:
+        - life flr ptcpn rt excl gfee
+        - LifeFlrPTCpnRtExclGfee
+        - life_flr_ptcpn_rt_excl_gfee
+        - life-flr-ptcpn-rt-excl-gfee
+        - lfpreg
+      SubsqntPayAdjFreqMonth:
+        type: int
+        description: Subsqnt pay adj freq month.
+        aliases:
+        - subsqnt pay adj freq month
+        - SubsqntPayAdjFreqMonth
+        - subsqnt_pay_adj_freq_month
+        - subsqnt-pay-adj-freq-month
+        - spafm
+      InstrumentCouponTypeCode:
+        type: float
+        description: Instrument coupon type code.
+        aliases:
+        - code
+        - instrument coupon type
+        - instrument coupon type code
+        - InstrumentCouponTypeCode
+        - instrument_coupon_type_code
+        - instrument-coupon-type-code
+        - ictc
+        - instrument coupon type code code
+      PassThruCpnRateInclGFee:
+        type: float
+        description: Pass thru cpn rate incl gfee.
+        aliases:
+        - pass thru cpn rate incl gfee
+        - PassThruCpnRateInclGFee
+        - pass_thru_cpn_rate_incl_gfee
+        - pass-thru-cpn-rate-incl-gfee
+        - ptcrig
+      PassThroughCouponRate:
+        type: float
+        description: Pass through coupon rate.
+        aliases:
+        - pass through coupon rate
+        - PassThroughCouponRate
+        - pass_through_coupon_rate
+        - pass-through-coupon-rate
+        - ptcr
+        - pass through coupon rate rate
+        - pass through coupon rate %
+      InitialPaymentRecastMonth:
+        type: int
+        description: Initial payment recast month.
+        aliases:
+        - initial payment recast month
+        - InitialPaymentRecastMonth
+        - initial_payment_recast_month
+        - initial-payment-recast-month
+        - iprm
+      PaymentHistory:
+        type: string
+        description: Payment history.
+        aliases:
+        - payment history
+        - PaymentHistory
+        - payment_history
+        - payment-history
+        - ph
+      PaymentFrequencyTypeCode:
+        type: string
+        description: Payment frequency type code.
+        aliases:
+        - code
+        - payment frequency type
+        - payment frequency type code
+        - PaymentFrequencyTypeCode
+        - payment_frequency_type_code
+        - payment-frequency-type-code
+        - pftc
+        - payment frequency type code code
+      PaymentDelayDays:
+        type: int
+        description: Payment delay days.
+        aliases:
+        - payment delay days
+        - PaymentDelayDays
+        - payment_delay_days
+        - payment-delay-days
+        - pdd
+      PaymentCapRate:
+        type: float
+        description: Payment cap rate.
+        aliases:
+        - payment cap rate
+        - PaymentCapRate
+        - payment_cap_rate
+        - payment-cap-rate
+        - pcr
+        - payment cap rate rate
+        - payment cap rate %
+      AmortizationTerm:
+        type: int
+        description: Amortization term.
+        aliases:
+        - amortization term
+        - AmortizationTerm
+        - amortization_term
+        - amortization-term
+        - at
+      AmortizationTypeCode:
+        type: string
+        description: Amortization type code.
+        aliases:
+        - code
+        - amortization type
+        - amortization type code
+        - AmortizationTypeCode
+        - amortization_type_code
+        - amortization-type-code
+        - atc
+        - amortization type code code
+      DayCountCode:
+        type: int
+        description: Day count code.
+        aliases:
+        - code
+        - day count
+        - day count code
+        - DayCountCode
+        - day_count_code
+        - day-count-code
+        - dcc
+        - day count code code
+      FinalPaymentDate:
+        type: date
+        description: Final payment date.
+        aliases:
+        - date
+        - final payment date
+        - FinalPaymentDate
+        - final_payment_date
+        - final-payment-date
+        - fpd
+        - final payment date date
+        - as of final payment date
+      GrossMargin:
+        type: float
+        description: Gross margin.
+        aliases:
+        - gross margin
+        - GrossMargin
+        - gross_margin
+        - gross-margin
+        - gm
+      ARMIndexCode:
+        type: string
+        description: Armindex code.
+        aliases:
+        - code
+        - armindex
+        - armindex code
+        - ARMIndexCode
+        - armindex_code
+        - armindex-code
+        - ac
+        - armindex code code
+      ARMIndexDescription:
+        type: string
+        description: Armindex description.
+        aliases:
+        - armindex description
+        - ARMIndexDescription
+        - armindex_description
+        - armindex-description
+        - ad
+      ARMIndexSource:
+        type: string
+        description: Armindex source.
+        aliases:
+        - armindex source
+        - ARMIndexSource
+        - armindex_source
+        - armindex-source
+        - as
+      InitialPaymentAdjMonth:
+        type: int
+        description: Initial payment adj month.
+        aliases:
+        - initial payment adj month
+        - InitialPaymentAdjMonth
+        - initial_payment_adj_month
+        - initial-payment-adj-month
+        - ipam
+      InitialRateChangeCapRate:
+        type: float
+        description: Initial rate change cap rate.
+        aliases:
+        - initial rate change cap rate
+        - InitialRateChangeCapRate
+        - initial_rate_change_cap_rate
+        - initial-rate-change-cap-rate
+        - irccr
+        - initial rate change cap rate rate
+        - initial rate change cap rate %
+      InitialRateResetPeriod:
+        type: float
+        description: Initial rate reset period.
+        aliases:
+        - initial rate reset period
+        - InitialRateResetPeriod
+        - initial_rate_reset_period
+        - initial-rate-reset-period
+        - irrp
+      LifeCapCouponRate:
+        type: float
+        description: Life cap coupon rate.
+        aliases:
+        - life cap coupon rate
+        - LifeCapCouponRate
+        - life_cap_coupon_rate
+        - life-cap-coupon-rate
+        - lccr
+        - life cap coupon rate rate
+        - life cap coupon rate %
+      LifeFloorCouponRate:
+        type: float
+        description: Life floor coupon rate.
+        aliases:
+        - life floor coupon rate
+        - LifeFloorCouponRate
+        - life_floor_coupon_rate
+        - life-floor-coupon-rate
+        - lfcr
+        - life floor coupon rate rate
+        - life floor coupon rate %
+      LookBackPeriod:
+        type: string
+        description: Look back period.
+        aliases:
+        - look back period
+        - LookBackPeriod
+        - look_back_period
+        - look-back-period
+        - lbp
+      NetMargin:
+        type: float
+        description: Net margin.
+        aliases:
+        - net margin
+        - margin
+        - net spread
+        - net rate margin
+        - net coupon margin
+        - NetMargin
+        - net_margin
+        - net-margin
+        - nm
+      NotionalBalanceAmount:
+        type: float
+        description: Notional balance amount.
+        aliases:
+        - amt
+        - value
+        - amount
+        - notional balance amt
+        - notional balance amount
+        - NotionalBalanceAmount
+        - notional_balance_amount
+        - notional-balance-amount
+        - nba
+        - notional balance amount amount
+      NotionalBalanceCode:
+        type: float
+        description: Notional balance code.
+        aliases:
+        - code
+        - notional balance
+        - notional balance code
+        - NotionalBalanceCode
+        - notional_balance_code
+        - notional-balance-code
+        - nbc
+        - notional balance code code
+      PayDay:
+        type: string
+        description: Pay day.
+        aliases:
+        - pay day
+        - PayDay
+        - pay_day
+        - pay-day
+        - pd
+      SubsqntRtResetFreqMonth:
+        type: int
+        description: Subsqnt rt reset freq month.
+        aliases:
+        - subsqnt rt reset freq month
+        - SubsqntRtResetFreqMonth
+        - subsqnt_rt_reset_freq_month
+        - subsqnt-rt-reset-freq-month
+        - srrfm
+      SubsqntRateChangeCapRate:
+        type: float
+        description: Subsqnt rate change cap rate.
+        aliases:
+        - subsqnt rate change cap rate
+        - SubsqntRateChangeCapRate
+        - subsqnt_rate_change_cap_rate
+        - subsqnt-rate-change-cap-rate
+        - srccr
+        - subsqnt rate change cap rate rate
+        - subsqnt rate change cap rate %
+      TradeAmount:
+        type: float
+        description: Trade amount.
+        aliases:
+        - amt
+        - value
+        - amount
+        - trade amt
+        - trade amount
+        - TradeAmount
+        - trade_amount
+        - trade-amount
+        - ta
+        - trade amount amount
+      ConvertibleIndicator:
+        type: bool
+        description: Convertible indicator.
+        aliases:
+        - convertible indicator
+        - ConvertibleIndicator
+        - convertible_indicator
+        - convertible-indicator
+        - ci
+      ConversionDate:
+        type: date
+        description: Conversion date.
+        aliases:
+        - date
+        - conversion date
+        - ConversionDate
+        - conversion_date
+        - conversion-date
+        - cd
+        - conversion date date
+        - as of conversion date
+      FirstRateResetDate:
+        type: date
+        description: First rate reset date.
+        aliases:
+        - date
+        - first rate reset date
+        - FirstRateResetDate
+        - first_rate_reset_date
+        - first-rate-reset-date
+        - frrd
+        - first rate reset date date
+        - as of first rate reset date
+      FirstPaymentDate:
+        type: date
+        description: First payment date.
+        aliases:
+        - date
+        - first payment date
+        - FirstPaymentDate
+        - first_payment_date
+        - first-payment-date
+        - fpd
+        - first payment date date
+        - as of first payment date
+      IndexType:
+        type: string
+        description: Index type.
+        aliases:
+        - index type
+        - IndexType
+        - index_type
+        - index-type
+        - it
+      IndexTerm:
+        type: int
+        description: Index term.
+        aliases:
+        - index term
+        - IndexTerm
+        - index_term
+        - index-term
+        - it
+      InterestCurrencyCode:
+        type: string
+        description: Interest currency code.
+        aliases:
+        - code
+        - interest currency
+        - interest currency code
+        - InterestCurrencyCode
+        - interest_currency_code
+        - interest-currency-code
+        - icc
+        - interest currency code code
+      InterestAdjConventioLifeCapIndicator:
+        type: bool
+        description: Interest adj conventio life cap indicator.
+        aliases:
+        - interest adj conventio life cap indicator
+        - InterestAdjConventioLifeCapIndicator
+        - interest_adj_conventio_life_cap_indicator
+        - interest-adj-conventio-life-cap-indicator
+        - iaclci
+      LiabLifeCapCouponRate:
+        type: float
+        description: Liab life cap coupon rate.
+        aliases:
+        - liab life cap coupon rate
+        - LiabLifeCapCouponRate
+        - liab_life_cap_coupon_rate
+        - liab-life-cap-coupon-rate
+        - llccr
+        - liab life cap coupon rate rate
+        - liab life cap coupon rate %
+      LiabLifeFloorCouponRate:
+        type: float
+        description: Liab life floor coupon rate.
+        aliases:
+        - liab life floor coupon rate
+        - LiabLifeFloorCouponRate
+        - liab_life_floor_coupon_rate
+        - liab-life-floor-coupon-rate
+        - llfcr
+        - liab life floor coupon rate rate
+        - liab life floor coupon rate %
+      NetProceeds:
+        type: string
+        description: Net proceeds.
+        aliases:
+        - net proceeds
+        - NetProceeds
+        - net_proceeds
+        - net-proceeds
+        - np
+      PaymentStructureTypeCode:
+        type: string
+        description: Payment structure type code.
+        aliases:
+        - code
+        - type code
+        - payment type
+        - structure type
+        - payment structure type
+        - payment structure type code
+        - pmt structure type
+        - PaymentStructureTypeCode
+        - payment_structure_type_code
+        - payment-structure-type-code
+      PaymentCalendarCode:
+        type: string
+        description: Payment calendar code.
+        aliases:
+        - code
+        - payment calendar
+        - payment calendar code
+        - PaymentCalendarCode
+        - payment_calendar_code
+        - payment-calendar-code
+        - pcc
+        - payment calendar code code
+      PaymentRollConvention:
+        type: string
+        description: Payment roll convention.
+        aliases:
+        - payment roll convention
+        - PaymentRollConvention
+        - payment_roll_convention
+        - payment-roll-convention
+        - prc
+      PaymentMethodCode:
+        type: string
+        description: Payment method code.
+        aliases:
+        - code
+        - payment method
+        - payment method code
+        - PaymentMethodCode
+        - payment_method_code
+        - payment-method-code
+        - pmc
+        - payment method code code
+      PrincipalCurrencyCode:
+        type: string
+        description: Principal currency code.
+        aliases:
+        - code
+        - principal currency
+        - principal currency code
+        - PrincipalCurrencyCode
+        - principal_currency_code
+        - principal-currency-code
+        - pcc
+        - principal currency code code
+      RangeAccrualProvisionInd:
+        type: bool
+        description: Range accrual provision ind.
+        aliases:
+        - range accrual provision ind
+        - RangeAccrualProvisionInd
+        - range_accrual_provision_ind
+        - range-accrual-provision-ind
+        - rapi
+      RangeNoteSuspensionPeriod:
+        type: string
+        description: Range note suspension period.
+        aliases:
+        - range note suspension period
+        - RangeNoteSuspensionPeriod
+        - range_note_suspension_period
+        - range-note-suspension-period
+        - rnsp
+      RangeNoteObsPeriod:
+        type: string
+        description: Range note obs period.
+        aliases:
+        - range note obs period
+        - RangeNoteObsPeriod
+        - range_note_obs_period
+        - range-note-obs-period
+        - rnop
+      RangeNoteObsCalendarCode:
+        type: string
+        description: Range note obs calendar code.
+        aliases:
+        - code
+        - range note obs calendar
+        - range note obs calendar code
+        - RangeNoteObsCalendarCode
+        - range_note_obs_calendar_code
+        - range-note-obs-calendar-code
+        - rnocc
+        - range note obs calendar code code
+      ResetCalendarCode:
+        type: string
+        description: Reset calendar code.
+        aliases:
+        - code
+        - reset calendar
+        - reset calendar code
+        - ResetCalendarCode
+        - reset_calendar_code
+        - reset-calendar-code
+        - rcc
+        - reset calendar code code
+      ResetRollConventionCode:
+        type: string
+        description: Reset roll convention code.
+        aliases:
+        - code
+        - reset roll convention
+        - reset roll convention code
+        - ResetRollConventionCode
+        - reset_roll_convention_code
+        - reset-roll-convention-code
+        - rrcc
+        - reset roll convention code code
+      ResetMethodCode:
+        type: string
+        description: Reset method code.
+        aliases:
+        - code
+        - reset method
+        - reset method code
+        - ResetMethodCode
+        - reset_method_code
+        - reset-method-code
+        - rmc
+        - reset method code code
+      Coefficient:
+        type: string
+        description: Coefficient.
+        aliases:
+        - coefficient
+        - c
+        - coefficient field 3
+        - coefficient field 4
+        - coefficient field 5
+      BLMAmortizationTerm:
+        type: int
+        description: Blmamortization term.
+        aliases:
+        - blmamortization term
+        - BLMAmortizationTerm
+        - blmamortization_term
+        - blmamortization-term
+        - bt
+      BLMAmortizationTypeCode:
+        type: string
+        description: Blmamortization type code.
+        aliases:
+        - code
+        - blmamortization type
+        - blmamortization type code
+        - BLMAmortizationTypeCode
+        - blmamortization_type_code
+        - blmamortization-type-code
+        - btc
+        - blmamortization type code code
+      BLMPassThroughCouponRate:
+        type: float
+        description: Blmpass through coupon rate.
+        aliases:
+        - blmpass through coupon rate
+        - BLMPassThroughCouponRate
+        - blmpass_through_coupon_rate
+        - blmpass-through-coupon-rate
+        - btcr
+        - blmpass through coupon rate rate
+        - blmpass through coupon rate %
+      LoanServicingFeeRate:
+        type: float
+        description: Loan servicing fee rate.
+        aliases:
+        - loan servicing fee rate
+        - LoanServicingFeeRate
+        - loan_servicing_fee_rate
+        - loan-servicing-fee-rate
+        - lsfr
+        - loan servicing fee rate rate
+        - loan servicing fee rate %
+      BLMBorrowerNoteRate:
+        type: float
+        description: Blmborrower note rate.
+        aliases:
+        - blmborrower note rate
+        - BLMBorrowerNoteRate
+        - blmborrower_note_rate
+        - blmborrower-note-rate
+        - bnr
+        - blmborrower note rate rate
+        - blmborrower note rate %
+      PostModBorrowerNoteRate:
+        type: float
+        description: Post mod borrower note rate.
+        aliases:
+        - post mod borrower note rate
+        - PostModBorrowerNoteRate
+        - post_mod_borrower_note_rate
+        - post-mod-borrower-note-rate
+        - pmbnr
+        - post mod borrower note rate rate
+        - post mod borrower note rate %
+      BestExCouponRate:
+        type: float
+        description: Best ex coupon rate.
+        aliases:
+        - best ex coupon rate
+        - BestExCouponRate
+        - best_ex_coupon_rate
+        - best-ex-coupon-rate
+        - becr
+        - best ex coupon rate rate
+        - best ex coupon rate %
+      BuyUpPrice:
+        type: float
+        description: Buy up price.
+        aliases:
+        - buy up price
+        - BuyUpPrice
+        - buy_up_price
+        - buy-up-price
+        - bup
+      BuyDownPrice:
+        type: float
+        description: Buy down price.
+        aliases:
+        - buy down price
+        - BuyDownPrice
+        - buy_down_price
+        - buy-down-price
+        - bdp
+      BuyUpBps:
+        type: float
+        description: Buy up bps.
+        aliases:
+        - buy up bps
+        - BuyUpBps
+        - buy_up_bps
+        - buy-up-bps
+        - bub
+      BuyDownBps:
+        type: string
+        description: Buy down bps.
+        aliases:
+        - buy down bps
+        - BuyDownBps
+        - buy_down_bps
+        - buy-down-bps
+        - bdb
+      RepositionTradePrice:
+        type: float
+        description: Reposition trade price.
+        aliases:
+        - reposition trade price
+        - RepositionTradePrice
+        - reposition_trade_price
+        - reposition-trade-price
+        - rtp
+      FrontStubEndDate:
+        type: date
+        description: Front stub end date.
+        aliases:
+        - date
+        - front stub end date
+        - FrontStubEndDate
+        - front_stub_end_date
+        - front-stub-end-date
+        - fsed
+        - front stub end date date
+        - as of front stub end date
+      BackStubStartDate:
+        type: date
+        description: Back stub start date.
+        aliases:
+        - date
+        - back stub start date
+        - BackStubStartDate
+        - back_stub_start_date
+        - back-stub-start-date
+        - bssd
+        - back stub start date date
+        - as of back stub start date
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR00500
+    - Show key metrics grouped by portfolio or instrument from PVR00500
+    - Filter by scenario/date fields and summarize results from PVR00500
+  pvr00600:
+    file_patterns:
+    - '*PVR00600*.nzf'
+    - PVR00600.nzf
+    description: 'Instrument-level analytics outputs for a valuation run (e.g., OAS, price, duration, WAL, CPR). Use this
+      table to analyze pricing and risk measures by instrument and portfolio.
+
+      '
+    aliases:
+    - PVR00600
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - pricing
+    - oas
+    - price
+    - analytics
+    - risk measures
+    - valuation analytics
+    - PVR 00600
+    primary_key:
+    - DmrRunID
+    - PortfolioID
+    - InstrumentID
+    - RunID
+    business_tags:
+    - analytics
+    - portfolio
+    - pricing
+    - risk
+    - valuation
+    columns:
+      DmrRunID:
+        type: string
+        description: Dmr run id.
+        aliases:
+        - run id
+        - dmr run
+        - batch id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DmrRunID
+        - dmr_run_id
+        - dmr-run-id
+        - dri
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      RunID:
+        type: string
+        description: Run id.
+        aliases:
+        - run
+        - run id
+        - RunID
+        - run_id
+        - run-id
+        - ri
+        - run id identifier
+        - run id id
+      Oas:
+        type: float
+        description: Oas.
+        aliases:
+        - oas
+        - option adjusted spread
+        - option-adjusted spread
+        - spread
+        - oas spread
+        - o
+      Price:
+        type: float
+        description: Price.
+        aliases:
+        - price
+        - model price
+        - clean price
+        - valuation price
+        - base price
+        - p
       Duration:
         type: float
-        description: "Duration."
-        aliases: [ "duration" ]
-
+        description: Duration.
+        aliases:
+        - duration
+        - d
+        - duration field 3
+        - duration field 4
+        - duration field 5
       WeightedAvgLife:
         type: float
-        description: "Weighted avg life."
-        aliases: [ "weighted avg life" ]
-
+        description: Weighted avg life.
+        aliases:
+        - weighted avg life
+        - WeightedAvgLife
+        - weighted_avg_life
+        - weighted-avg-life
+        - wal
       CPR1Year:
         type: float
-        description: "Cpr1 year."
-        aliases: [ "cpr1 year" ]
-
-    # Optional: examples of how the business uses this table (helps NL/RAG)
+        description: Cpr1 year.
+        aliases:
+        - cpr1 year
+        - CPR1Year
+        - cpr1_year
+        - cpr1-year
+        - cy
     examples:
-      - "Count instruments by portfolio for a given run/date using PVR00600"
-      - "Show key metrics grouped by portfolio or instrument from PVR00600"
-      - "Filter by scenario/date fields and summarize results from PVR00600"
+    - Count instruments by portfolio for a given run/date using PVR00600
+    - Show key metrics grouped by portfolio or instrument from PVR00600
+    - Filter by scenario/date fields and summarize results from PVR00600
+  pvr00900:
+    file_patterns:
+    - '*PVR00900*.nzf'
+    - PVR00900.nzf
+    description: 'Interest rate curve points by scenario/index/maturity. Use this table to analyze rate curves and scenario
+      assumptions as of a given date.
 
+      '
+    aliases:
+    - PVR00900
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - scenario
+    - scenarios
+    - interest rates
+    - rates
+    - rate curves
+    - yield curve
+    - curve points
+    - PVR 00900
+    business_tags:
+    - curves
+    - portfolio
+    - rates
+    - scenarios
+    - valuation
+    columns:
+      InterestRateDate:
+        type: date
+        description: Interest rate date.
+        aliases:
+        - date
+        - interest rate date
+        - InterestRateDate
+        - interest_rate_date
+        - interest-rate-date
+        - ird
+        - interest rate date date
+        - as of interest rate date
+      Description:
+        type: string
+        description: Description.
+        aliases:
+        - description
+        - d
+        - description field 3
+        - description field 4
+        - description field 5
+      Type:
+        type: string
+        description: Type.
+        aliases:
+        - type
+        - t
+        - type field 3
+        - type field 4
+        - type field 5
+      InterestRateScenario:
+        type: float
+        description: Interest rate scenario.
+        aliases:
+        - ir scenario
+        - rate scenario
+        - interest rate scenario
+        - InterestRateScenario
+        - interest_rate_scenario
+        - interest-rate-scenario
+        - irs
+      IndexName:
+        type: string
+        description: Index name.
+        aliases:
+        - index name
+        - IndexName
+        - index_name
+        - index-name
+        - in
+      Maturity:
+        type: string
+        description: Maturity.
+        aliases:
+        - maturity
+        - m
+        - maturity field 3
+        - maturity field 4
+        - maturity field 5
+      Rate:
+        type: float
+        description: Rate.
+        aliases:
+        - rate
+        - r
+        - rate rate
+        - rate %
+        - rate field 5
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR00900
+    - Show key metrics grouped by portfolio or instrument from PVR00900
+    - Filter by scenario/date fields and summarize results from PVR00900
+  pvr01000:
+    file_patterns:
+    - '*PVR01000*.nzf'
+    - PVR01000.nzf
+    description: 'Portfolio list for each valuation run (run-to-portfolio mapping). Use this table to identify which portfolios
+      were included in each DMR run.
 
+      '
+    aliases:
+    - PVR01000
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - portfolio list
+    - run portfolios
+    - PVR 01000
+    primary_key:
+    - PortfolioID
+    - DmrRunID
+    business_tags:
+    - portfolio
+    - run-metadata
+    - valuation
+    columns:
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - Portfolio
+        - Portfolio Id
+        - Portfolio Identifier
+        - account
+        - book
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+      DmrRunID:
+        type: string
+        description: Dmr run id.
+        aliases:
+        - run id
+        - dmr run
+        - batch id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DmrRunID
+        - dmr_run_id
+        - dmr-run-id
+        - dri
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01000
+    - Show key metrics grouped by portfolio or instrument from PVR01000
+    - Filter by scenario/date fields and summarize results from PVR01000
+  pvr01100:
+    file_patterns:
+    - '*PVR01100*.nzf'
+    - PVR01100.nzf
+    description: 'Instrument characteristics and loan rollup attributes by run/portfolio (e.g., unpaid balance, LTV, WAC,
+      WAM). Use this table for characteristic-based segmentation and credit/rate sensitivity analysis.
+
+      '
+    aliases:
+    - PVR01100
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - interest rates
+    - rates
+    - characteristics
+    - loan attributes
+    - instrument characteristics
+    - PVR 01100
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PortfolioID
+    business_tags:
+    - balances
+    - characteristics
+    - loan-characteristics
+    - portfolio
+    - rates
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: Dmrrun id.
+        aliases:
+        - dmrrun
+        - run id
+        - batch id
+        - dmrrun id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun_id
+        - dmrrun-id
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      UnpaidBalance:
+        type: float
+        description: Unpaid balance.
+        aliases:
+        - unpaid balance
+        - UnpaidBalance
+        - unpaid_balance
+        - unpaid-balance
+        - ub
+      Ltv:
+        type: float
+        description: Ltv.
+        aliases:
+        - ltv
+        - l
+        - ltv field 3
+        - ltv field 4
+        - ltv field 5
+      OriginalWacRate:
+        type: float
+        description: Original wac rate.
+        aliases:
+        - original wac rate
+        - OriginalWacRate
+        - original_wac_rate
+        - original-wac-rate
+        - owr
+        - original wac rate rate
+        - original wac rate %
+      WamMth:
+        type: int
+        description: Wam mth.
+        aliases:
+        - wam mth
+        - WamMth
+        - wam_mth
+        - wam-mth
+        - wm
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01100
+    - Show key metrics grouped by portfolio or instrument from PVR01100
+    - Filter by scenario/date fields and summarize results from PVR01100
+  pvr01200:
+    file_patterns:
+    - '*PVR01200*.nzf'
+    - PVR01200.nzf
+    description: 'Detailed payment schedule / reset rules and index parameters by instrument and payment structure. Use this
+      table to analyze coupon resets, compounding, schedule conventions, and cashflow setup.
+
+      '
+    aliases:
+    - PVR01200
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - payment schedule
+    - reset rules
+    - cashflow setup
+    - PVR 01200
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PaymentStructureID
+    business_tags:
+    - payment-structure
+    - portfolio
+    - rates
+    - schedule
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: Dmrrun id.
+        aliases:
+        - dmrrun
+        - run id
+        - batch id
+        - dmrrun id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun_id
+        - dmrrun-id
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      PaymentStructureID:
+        type: string
+        description: Payment structure id.
+        aliases:
+        - ps id
+        - structure id
+        - payment structure
+        - payment structure id
+        - payment struct id
+        - pmt structure id
+        - paymentstructureid
+        - payment_structure_id
+        - payment-structure-id
+        - psi
+      PaymentStructureTypeCode:
+        type: string
+        description: Payment structure type code.
+        aliases:
+        - code
+        - type code
+        - payment type
+        - structure type
+        - payment structure type
+        - payment structure type code
+        - pmt structure type
+        - PaymentStructureTypeCode
+        - payment_structure_type_code
+        - payment-structure-type-code
+      VnType:
+        type: string
+        description: Vn type.
+        aliases:
+        - vn type
+        - VnType
+        - vn_type
+        - vn-type
+        - vt
+      AccrualsAnniversaryDay:
+        type: string
+        description: Accruals anniversary day.
+        aliases:
+        - accruals anniversary day
+        - AccrualsAnniversaryDay
+        - accruals_anniversary_day
+        - accruals-anniversary-day
+        - aad
+      AccrualsBusinessCenter:
+        type: string
+        description: Accruals business center.
+        aliases:
+        - accruals business center
+        - AccrualsBusinessCenter
+        - accruals_business_center
+        - accruals-business-center
+        - abc
+      AccrualsFrequencyTerm:
+        type: int
+        description: Accruals frequency term.
+        aliases:
+        - accruals frequency term
+        - AccrualsFrequencyTerm
+        - accruals_frequency_term
+        - accruals-frequency-term
+        - aft
+      AccrualsFrequencyTermUnit:
+        type: int
+        description: Accruals frequency term unit.
+        aliases:
+        - accruals frequency term unit
+        - AccrualsFrequencyTermUnit
+        - accruals_frequency_term_unit
+        - accruals-frequency-term-unit
+        - aftu
+      AccrualsRollConvention:
+        type: string
+        description: Accruals roll convention.
+        aliases:
+        - accruals roll convention
+        - AccrualsRollConvention
+        - accruals_roll_convention
+        - accruals-roll-convention
+        - arc
+      AllowMaturityDateAdjustment:
+        type: date
+        description: Allow maturity date adjustment.
+        aliases:
+        - date
+        - allow maturity date adjustment
+        - AllowMaturityDateAdjustment
+        - allow_maturity_date_adjustment
+        - allow-maturity-date-adjustment
+        - amda
+      AmortizationTerm:
+        type: int
+        description: Amortization term.
+        aliases:
+        - amortization term
+        - AmortizationTerm
+        - amortization_term
+        - amortization-term
+        - at
+      Balance:
+        type: float
+        description: Balance.
+        aliases:
+        - balance
+        - b
+        - balance field 3
+        - balance field 4
+        - balance field 5
+      CapRate:
+        type: float
+        description: Cap rate.
+        aliases:
+        - cap rate
+        - CapRate
+        - cap_rate
+        - cap-rate
+        - cr
+        - cap rate rate
+        - cap rate %
+      Coupon:
+        type: float
+        description: Coupon.
+        aliases:
+        - coupon
+        - c
+        - coupon field 3
+        - coupon field 4
+        - coupon field 5
+      DayCountCode:
+        type: int
+        description: Day count code.
+        aliases:
+        - code
+        - day count
+        - day count code
+        - DayCountCode
+        - day_count_code
+        - day-count-code
+        - dcc
+        - day count code code
+      EffectiveDate:
+        type: date
+        description: Effective date.
+        aliases:
+        - date
+        - effective date
+        - EffectiveDate
+        - effective_date
+        - effective-date
+        - ed
+        - effective date date
+        - as of effective date
+      ExpectedAverageRate:
+        type: float
+        description: Expected average rate.
+        aliases:
+        - expected average rate
+        - ExpectedAverageRate
+        - expected_average_rate
+        - expected-average-rate
+        - ear
+        - expected average rate rate
+        - expected average rate %
+      FirstAdjustment:
+        type: string
+        description: First adjustment.
+        aliases:
+        - first adjustment
+        - FirstAdjustment
+        - first_adjustment
+        - first-adjustment
+        - fa
+      FirstAdjustmentSpread:
+        type: float
+        description: First adjustment spread.
+        aliases:
+        - first adjustment spread
+        - FirstAdjustmentSpread
+        - first_adjustment_spread
+        - first-adjustment-spread
+        - fas
+      FirstPaymentDate:
+        type: date
+        description: First payment date.
+        aliases:
+        - date
+        - first payment date
+        - FirstPaymentDate
+        - first_payment_date
+        - first-payment-date
+        - fpd
+        - first payment date date
+        - as of first payment date
+      FirstResetDate:
+        type: date
+        description: First reset date.
+        aliases:
+        - date
+        - first reset date
+        - FirstResetDate
+        - first_reset_date
+        - first-reset-date
+        - frd
+        - first reset date date
+        - as of first reset date
+      FloorRate:
+        type: float
+        description: Floor rate.
+        aliases:
+        - floor rate
+        - FloorRate
+        - floor_rate
+        - floor-rate
+        - fr
+        - floor rate rate
+        - floor rate %
+      Index:
+        type: string
+        description: Index.
+        aliases:
+        - index
+        - i
+        - index field 3
+        - index field 4
+        - index field 5
+      IndexCompoundingTerm:
+        type: int
+        description: Index compounding term.
+        aliases:
+        - index compounding term
+        - IndexCompoundingTerm
+        - index_compounding_term
+        - index-compounding-term
+        - ict
+      IndexCompoundingTermUnit:
+        type: int
+        description: Index compounding term unit.
+        aliases:
+        - index compounding term unit
+        - IndexCompoundingTermUnit
+        - index_compounding_term_unit
+        - index-compounding-term-unit
+        - ictu
+      IndexMaturityTerm:
+        type: int
+        description: Index maturity term.
+        aliases:
+        - index maturity term
+        - IndexMaturityTerm
+        - index_maturity_term
+        - index-maturity-term
+        - imt
+      IndexMaturityTermUnit:
+        type: int
+        description: Index maturity term unit.
+        aliases:
+        - index maturity term unit
+        - IndexMaturityTermUnit
+        - index_maturity_term_unit
+        - index-maturity-term-unit
+        - imtu
+      IndexMultiplier:
+        type: string
+        description: Index multiplier.
+        aliases:
+        - index multiplier
+        - IndexMultiplier
+        - index_multiplier
+        - index-multiplier
+        - im
+      IndexReferenceCurve:
+        type: string
+        description: Index reference curve.
+        aliases:
+        - index reference curve
+        - IndexReferenceCurve
+        - index_reference_curve
+        - index-reference-curve
+        - irc
+      IndexSpreadOverCurve:
+        type: float
+        description: Index spread over curve.
+        aliases:
+        - index spread over curve
+        - IndexSpreadOverCurve
+        - index_spread_over_curve
+        - index-spread-over-curve
+        - isoc
+      InitialTeaserPeriod:
+        type: string
+        description: Initial teaser period.
+        aliases:
+        - initial teaser period
+        - InitialTeaserPeriod
+        - initial_teaser_period
+        - initial-teaser-period
+        - itp
+      InvestorDelay:
+        type: string
+        description: Investor delay.
+        aliases:
+        - investor delay
+        - InvestorDelay
+        - investor_delay
+        - investor-delay
+        - id
+      InvestorPercentage:
+        type: float
+        description: Investor percentage.
+        aliases:
+        - pct
+        - percent
+        - investor pctage
+        - investor percentage
+        - InvestorPercentage
+        - investor_percentage
+        - investor-percentage
+        - ip
+        - investor percentage %
+        - investor percentage percent
+      MarginSpread:
+        type: float
+        description: Margin spread.
+        aliases:
+        - margin spread
+        - MarginSpread
+        - margin_spread
+        - margin-spread
+        - ms
+      MaturityDate:
+        type: date
+        description: Maturity date.
+        aliases:
+        - date
+        - maturity date
+        - MaturityDate
+        - maturity_date
+        - maturity-date
+        - md
+        - maturity date date
+        - as of maturity date
+      PaymentCap:
+        type: string
+        description: Payment cap.
+        aliases:
+        - payment cap
+        - PaymentCap
+        - payment_cap
+        - payment-cap
+        - pc
+      PaymentDay:
+        type: string
+        description: Payment day.
+        aliases:
+        - payment day
+        - PaymentDay
+        - payment_day
+        - payment-day
+        - pd
+      PaymentFirstAdjustment:
+        type: string
+        description: Payment first adjustment.
+        aliases:
+        - payment first adjustment
+        - PaymentFirstAdjustment
+        - payment_first_adjustment
+        - payment-first-adjustment
+        - pfa
+      PaymentPlan:
+        type: string
+        description: Payment plan.
+        aliases:
+        - payment plan
+        - PaymentPlan
+        - payment_plan
+        - payment-plan
+        - pp
+      PaymentsDayCount:
+        type: int
+        description: Payments day count.
+        aliases:
+        - payments day count
+        - PaymentsDayCount
+        - payments_day_count
+        - payments-day-count
+        - pdc
+      PaymentsFrequencyTerm:
+        type: int
+        description: Payments frequency term.
+        aliases:
+        - payments frequency term
+        - PaymentsFrequencyTerm
+        - payments_frequency_term
+        - payments-frequency-term
+        - pft
+      PaymentsOffset:
+        type: string
+        description: Payments offset.
+        aliases:
+        - payments offset
+        - PaymentsOffset
+        - payments_offset
+        - payments-offset
+        - po
+      PaymentsOffsetAnnDay:
+        type: string
+        description: Payments offset ann day.
+        aliases:
+        - payments offset ann day
+        - PaymentsOffsetAnnDay
+        - payments_offset_ann_day
+        - payments-offset-ann-day
+        - poad
+      PaymentsOffsetBusCenter:
+        type: string
+        description: Payments offset bus center.
+        aliases:
+        - payments offset bus center
+        - PaymentsOffsetBusCenter
+        - payments_offset_bus_center
+        - payments-offset-bus-center
+        - pobc
+      PaymentsOffsetRollConv:
+        type: string
+        description: Payments offset roll conv.
+        aliases:
+        - payments offset roll conv
+        - PaymentsOffsetRollConv
+        - payments_offset_roll_conv
+        - payments-offset-roll-conv
+        - porc
+      PaymentsOffsetUnit:
+        type: string
+        description: Payments offset unit.
+        aliases:
+        - payments offset unit
+        - PaymentsOffsetUnit
+        - payments_offset_unit
+        - payments-offset-unit
+        - pou
+      PaymentsRelativeTo:
+        type: string
+        description: Payments relative to.
+        aliases:
+        - payments relative to
+        - PaymentsRelativeTo
+        - payments_relative_to
+        - payments-relative-to
+        - prt
+      PaymentsType:
+        type: string
+        description: Payments type.
+        aliases:
+        - payments type
+        - PaymentsType
+        - payments_type
+        - payments-type
+        - pt
+      PaymentSubsequentAdjustment:
+        type: string
+        description: Payment subsequent adjustment.
+        aliases:
+        - payment subsequent adjustment
+        - PaymentSubsequentAdjustment
+        - payment_subsequent_adjustment
+        - payment-subsequent-adjustment
+        - psa
+      RecastFirstTerm:
+        type: int
+        description: Recast first term.
+        aliases:
+        - recast first term
+        - RecastFirstTerm
+        - recast_first_term
+        - recast-first-term
+        - rft
+      RecastSubsequentTerm:
+        type: int
+        description: Recast subsequent term.
+        aliases:
+        - recast subsequent term
+        - RecastSubsequentTerm
+        - recast_subsequent_term
+        - recast-subsequent-term
+        - rst
+      ResetsFixingOffset:
+        type: string
+        description: Resets fixing offset.
+        aliases:
+        - resets fixing offset
+        - ResetsFixingOffset
+        - resets_fixing_offset
+        - resets-fixing-offset
+        - rfo
+      ResetsFixingOffsetUnit:
+        type: string
+        description: Resets fixing offset unit.
+        aliases:
+        - resets fixing offset unit
+        - ResetsFixingOffsetUnit
+        - resets_fixing_offset_unit
+        - resets-fixing-offset-unit
+        - rfou
+      ResetsFrequencyBusCenter:
+        type: string
+        description: Resets frequency bus center.
+        aliases:
+        - resets frequency bus center
+        - ResetsFrequencyBusCenter
+        - resets_frequency_bus_center
+        - resets-frequency-bus-center
+        - rfbc
+      ResetsFrequencyRollConv:
+        type: string
+        description: Resets frequency roll conv.
+        aliases:
+        - resets frequency roll conv
+        - ResetsFrequencyRollConv
+        - resets_frequency_roll_conv
+        - resets-frequency-roll-conv
+        - rfrc
+      ResetsFrequencyTerm:
+        type: int
+        description: Resets frequency term.
+        aliases:
+        - resets frequency term
+        - ResetsFrequencyTerm
+        - resets_frequency_term
+        - resets-frequency-term
+        - rft
+      ResetsFrequencyTermAnnDay:
+        type: int
+        description: Resets frequency term ann day.
+        aliases:
+        - resets frequency term ann day
+        - ResetsFrequencyTermAnnDay
+        - resets_frequency_term_ann_day
+        - resets-frequency-term-ann-day
+        - rftad
+      ResetsFrequencyTermUnit:
+        type: int
+        description: Resets frequency term unit.
+        aliases:
+        - resets frequency term unit
+        - ResetsFrequencyTermUnit
+        - resets_frequency_term_unit
+        - resets-frequency-term-unit
+        - rftu
+      ResetsHistoricalRate:
+        type: float
+        description: Resets historical rate.
+        aliases:
+        - resets historical rate
+        - ResetsHistoricalRate
+        - resets_historical_rate
+        - resets-historical-rate
+        - rhr
+        - resets historical rate rate
+        - resets historical rate %
+      ResetsHistoryRef:
+        type: string
+        description: Resets history ref.
+        aliases:
+        - resets history ref
+        - ResetsHistoryRef
+        - resets_history_ref
+        - resets-history-ref
+        - rhr
+      ResetsRelativeTo:
+        type: string
+        description: Resets relative to.
+        aliases:
+        - resets relative to
+        - ResetsRelativeTo
+        - resets_relative_to
+        - resets-relative-to
+        - rrt
+      DoCompounding:
+        type: string
+        description: Do compounding.
+        aliases:
+        - do compounding
+        - DoCompounding
+        - do_compounding
+        - do-compounding
+        - dc
+      SubsequentAdjustmentFreq:
+        type: string
+        description: Subsequent adjustment freq.
+        aliases:
+        - subsequent adjustment freq
+        - SubsequentAdjustmentFreq
+        - subsequent_adjustment_freq
+        - subsequent-adjustment-freq
+        - saf
+      SubsequentAdjustmentSpread:
+        type: float
+        description: Subsequent adjustment spread.
+        aliases:
+        - subsequent adjustment spread
+        - SubsequentAdjustmentSpread
+        - subsequent_adjustment_spread
+        - subsequent-adjustment-spread
+        - sas
+      UseExactSchedule:
+        type: string
+        description: Use exact schedule.
+        aliases:
+        - use exact schedule
+        - UseExactSchedule
+        - use_exact_schedule
+        - use-exact-schedule
+        - ues
+      DoCompoundingNonBusinessDays:
+        type: int
+        description: Do compounding non business days.
+        aliases:
+        - do compounding non business days
+        - DoCompoundingNonBusinessDays
+        - do_compounding_non_business_days
+        - do-compounding-non-business-days
+        - dcnbd
+      FrontStubEndDate:
+        type: date
+        description: Front stub end date.
+        aliases:
+        - date
+        - front stub end date
+        - FrontStubEndDate
+        - front_stub_end_date
+        - front-stub-end-date
+        - fsed
+        - front stub end date date
+        - as of front stub end date
+      BackStubStartDate:
+        type: date
+        description: Back stub start date.
+        aliases:
+        - date
+        - back stub start date
+        - BackStubStartDate
+        - back_stub_start_date
+        - back-stub-start-date
+        - bssd
+        - back stub start date date
+        - as of back stub start date
+      IndexCurve:
+        type: string
+        description: Index curve.
+        aliases:
+        - index curve
+        - IndexCurve
+        - index_curve
+        - index-curve
+        - ic
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: Portfolio date.
+        aliases:
+        - date
+        - portfolio date
+        - portfolio as of date
+        - PortfolioDate
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+        - as of portfolio date
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01200
+    - Show key metrics grouped by portfolio or instrument from PVR01200
+    - Filter by scenario/date fields and summarize results from PVR01200
+  pvr01300:
+    file_patterns:
+    - '*PVR01300*.nzf'
+    - PVR01300.nzf
+    description: 'Option exercise information by instrument and as-of portfolio date. Use this table to analyze option exercise
+      dates/prices for instruments.
+
+      '
+    aliases:
+    - PVR01300
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - pricing
+    - oas
+    - price
+    - option exercise
+    - call option
+    - option price
+    - PVR 01300
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PortfolioID
+    business_tags:
+    - as-of
+    - options
+    - portfolio
+    - pricing
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: Dmrrun id.
+        aliases:
+        - dmrrun
+        - run id
+        - batch id
+        - dmrrun id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun_id
+        - dmrrun-id
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      OptionExerciseDate:
+        type: date
+        description: Option exercise date.
+        aliases:
+        - date
+        - option exercise date
+        - OptionExerciseDate
+        - option_exercise_date
+        - option-exercise-date
+        - oed
+        - option exercise date date
+        - as of option exercise date
+      OptionExercisePrice:
+        type: float
+        description: Option exercise price.
+        aliases:
+        - option exercise price
+        - OptionExercisePrice
+        - option_exercise_price
+        - option-exercise-price
+        - oep
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: Portfolio date.
+        aliases:
+        - date
+        - portfolio date
+        - portfolio as of date
+        - PortfolioDate
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+        - as of portfolio date
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01300
+    - Show key metrics grouped by portfolio or instrument from PVR01300
+    - Filter by scenario/date fields and summarize results from PVR01300
+  pvr01400:
+    file_patterns:
+    - '*PVR01400*.nzf'
+    - PVR01400.nzf
+    description: 'Step-rate coupon reset details by instrument/payment structure and as-of portfolio date. Use this table
+      to analyze step-rate reset dates and reset rates.
+
+      '
+    aliases:
+    - PVR01400
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - step rate
+    - coupon reset
+    - reset rate
+    - PVR 01400
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PaymentStructureID
+    business_tags:
+    - payment-structure
+    - portfolio
+    - rates
+    - step-rate
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: Dmrrun id.
+        aliases:
+        - dmrrun
+        - run id
+        - batch id
+        - dmrrun id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun_id
+        - dmrrun-id
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      PaymentStructureID:
+        type: string
+        description: Payment structure id.
+        aliases:
+        - ps id
+        - structure id
+        - payment structure
+        - payment structure id
+        - payment struct id
+        - pmt structure id
+        - paymentstructureid
+        - payment_structure_id
+        - payment-structure-id
+        - psi
+      PaymentStructureTypeCode:
+        type: string
+        description: Payment structure type code.
+        aliases:
+        - code
+        - type code
+        - payment type
+        - structure type
+        - payment structure type
+        - payment structure type code
+        - pmt structure type
+        - PaymentStructureTypeCode
+        - payment_structure_type_code
+        - payment-structure-type-code
+      StepRateCouponResetDate:
+        type: date
+        description: Step rate coupon reset date.
+        aliases:
+        - date
+        - step rate coupon reset date
+        - StepRateCouponResetDate
+        - step_rate_coupon_reset_date
+        - step-rate-coupon-reset-date
+        - srcrd
+        - step rate coupon reset date date
+        - as of step rate coupon reset date
+      StepRateCouponResetRate:
+        type: float
+        description: Step rate coupon reset rate.
+        aliases:
+        - step rate coupon reset rate
+        - StepRateCouponResetRate
+        - step_rate_coupon_reset_rate
+        - step-rate-coupon-reset-rate
+        - srcrr
+        - step rate coupon reset rate rate
+        - step rate coupon reset rate %
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: Portfolio date.
+        aliases:
+        - date
+        - portfolio date
+        - portfolio as of date
+        - PortfolioDate
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+        - as of portfolio date
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01400
+    - Show key metrics grouped by portfolio or instrument from PVR01400
+    - Filter by scenario/date fields and summarize results from PVR01400
+  pvr01500:
+    file_patterns:
+    - '*PVR01500*.nzf'
+    - PVR01500.nzf
+    description: 'PVR01500 dataset.
+
+      '
+    aliases:
+    - PVR01500
+    - payment structure
+    - payment schedule
+    - variable rate history
+    - rate reset history
+    - historical coupon
+    - coupon history
+    - PVR 01500
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PaymentStructureID
+    business_tags:
+    - payment-structure
+    - portfolio
+    - rates
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: DMR run identifier (batch/run context).
+        aliases:
+        - run id
+        - dmr run
+        - batch id
+        - as of run
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun id
+        - dmrrun_id
+      InstrumentID:
+        type: string
+        description: Instrument identifier.
+        aliases:
+        - instrument
+        - security
+        - pool
+        - cusip
+        - id
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+      PaymentStructureID:
+        type: string
+        description: Unique identifier for a payment structure tied to an instrument.
+        aliases:
+        - payment structure id
+        - structure id
+        - ps id
+        - payment struct id
+        - pmt structure id
+        - paymentstructureid
+        - payment_structure_id
+        - payment-structure-id
+        - psi
+        - payment structure id identifier
+      PaymentStructureTypeCode:
+        type: string
+        description: Code representing the payment structure type.
+        aliases:
+        - payment type
+        - structure type
+        - payment structure type
+        - type code
+        - pmt structure type
+        - PaymentStructureTypeCode
+        - payment structure type code
+        - payment_structure_type_code
+        - payment-structure-type-code
+        - pstc
+      HistoricalVarRateResetDate:
+        type: date
+        description: Date when the variable rate was reset (historical).
+        aliases:
+        - reset date
+        - rate reset date
+        - var reset
+        - reprice date
+        - HistoricalVarRateResetDate
+        - historical var rate reset date
+        - historical_var_rate_reset_date
+        - historical-var-rate-reset-date
+        - hvrrd
+        - historical var rate reset date date
+      HistoricalVarRateCouponPercent:
+        type: float
+        description: Coupon percent after the historical variable-rate reset.
+        aliases:
+        - coupon
+        - coupon percent
+        - interest rate
+        - rate
+        - var coupon
+        - reset coupon
+        - HistoricalVarRateCouponPercent
+        - historical var rate coupon percent
+        - historical_var_rate_coupon_percent
+        - historical-var-rate-coupon-percent
+      PortfolioID:
+        type: string
+        description: Portfolio identifier.
+        aliases:
+        - portfolio
+        - portfolio id
+        - account
+        - book
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: As-of date for the portfolio snapshot.
+        aliases:
+        - as of date
+        - portfolio asof
+        - snapshot date
+        - report date
+        - PortfolioDate
+        - portfolio date
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+    examples:
+    - UPB or instrument count by payment structure type for a given PortfolioDate
+    - List instruments with variable-rate reset date in a given month
+    - Average coupon percent by portfolio and payment structure type
+  pvr01600:
+    file_patterns:
+    - '*PVR01600*.nzf'
+    - PVR01600.nzf
+    description: 'Principal/notional paydown events by instrument/payment structure and as-of portfolio date. Use this table
+      to analyze scheduled or event-based principal paydowns.
+
+      '
+    aliases:
+    - PVR01600
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - payment terms
+    - coupon
+    - principal paydown
+    - notional paydown
+    - PVR 01600
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PaymentStructureID
+    business_tags:
+    - cashflows
+    - paydown
+    - payment-structure
+    - portfolio
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: Dmrrun id.
+        aliases:
+        - dmrrun
+        - run id
+        - batch id
+        - dmrrun id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun_id
+        - dmrrun-id
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      PaymentStructureID:
+        type: string
+        description: Payment structure id.
+        aliases:
+        - ps id
+        - structure id
+        - payment structure
+        - payment structure id
+        - payment struct id
+        - pmt structure id
+        - paymentstructureid
+        - payment_structure_id
+        - payment-structure-id
+        - psi
+      PaymentStructureTypeCode:
+        type: string
+        description: Payment structure type code.
+        aliases:
+        - code
+        - type code
+        - payment type
+        - structure type
+        - payment structure type
+        - payment structure type code
+        - pmt structure type
+        - PaymentStructureTypeCode
+        - payment_structure_type_code
+        - payment-structure-type-code
+      PrinNtnlPaydownDate:
+        type: date
+        description: Prin ntnl paydown date.
+        aliases:
+        - date
+        - prin ntnl paydown date
+        - PrinNtnlPaydownDate
+        - prin_ntnl_paydown_date
+        - prin-ntnl-paydown-date
+        - pnpd
+        - prin ntnl paydown date date
+        - as of prin ntnl paydown date
+      PrinNtnlPaydownAmount:
+        type: float
+        description: Prin ntnl paydown amount.
+        aliases:
+        - principal paydown
+        - principal paydowns
+        - notional paydown
+        - paydown amount
+        - principal paydown amount
+        - amt
+        - value
+        - amount
+        - prin ntnl paydown amt
+        - prin ntnl paydown amount
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: Portfolio date.
+        aliases:
+        - date
+        - portfolio date
+        - portfolio as of date
+        - PortfolioDate
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+        - as of portfolio date
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01600
+    - Show key metrics grouped by portfolio or instrument from PVR01600
+    - Filter by scenario/date fields and summarize results from PVR01600
+  pvr01700:
+    file_patterns:
+    - '*PVR01700*.nzf'
+    - PVR01700.nzf
+    description: 'Range note bounds and observation rules by instrument/payment structure and as-of portfolio date. Use this
+      table to analyze range note parameters (bounds, compare rules, reference index).
+
+      '
+    aliases:
+    - PVR01700
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - range note
+    - range bounds
+    - coupon bounds
+    - PVR 01700
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PaymentStructureID
+    business_tags:
+    - payment-structure
+    - portfolio
+    - range-note
+    - rates
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: Dmrrun id.
+        aliases:
+        - dmrrun
+        - run id
+        - batch id
+        - dmrrun id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun_id
+        - dmrrun-id
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      PaymentStructureID:
+        type: string
+        description: Payment structure id.
+        aliases:
+        - ps id
+        - structure id
+        - payment structure
+        - payment structure id
+        - payment struct id
+        - pmt structure id
+        - paymentstructureid
+        - payment_structure_id
+        - payment-structure-id
+        - psi
+      PaymentStructureTypeCode:
+        type: string
+        description: Payment structure type code.
+        aliases:
+        - code
+        - type code
+        - payment type
+        - structure type
+        - payment structure type
+        - payment structure type code
+        - pmt structure type
+        - PaymentStructureTypeCode
+        - payment_structure_type_code
+        - payment-structure-type-code
+      RangeNotePeriodBeginDate:
+        type: date
+        description: Range note period begin date.
+        aliases:
+        - date
+        - range note period begin date
+        - RangeNotePeriodBeginDate
+        - range_note_period_begin_date
+        - range-note-period-begin-date
+        - rnpbd
+        - range note period begin date date
+        - as of range note period begin date
+      RangeNotePeriodEndDate:
+        type: date
+        description: Range note period end date.
+        aliases:
+        - date
+        - range note period end date
+        - RangeNotePeriodEndDate
+        - range_note_period_end_date
+        - range-note-period-end-date
+        - rnped
+        - range note period end date date
+        - as of range note period end date
+      RangeNoteLowerBoundRate:
+        type: float
+        description: Range note lower bound rate.
+        aliases:
+        - range note lower bound rate
+        - RangeNoteLowerBoundRate
+        - range_note_lower_bound_rate
+        - range-note-lower-bound-rate
+        - rnlbr
+        - range note lower bound rate rate
+        - range note lower bound rate %
+      RangeNoteLowerBoundCompareRule:
+        type: string
+        description: Range note lower bound compare rule.
+        aliases:
+        - range note lower bound compare rule
+        - RangeNoteLowerBoundCompareRule
+        - range_note_lower_bound_compare_rule
+        - range-note-lower-bound-compare-rule
+        - rnlbcr
+      RangeNoteUpperBoundRate:
+        type: float
+        description: Range note upper bound rate.
+        aliases:
+        - range note upper bound rate
+        - RangeNoteUpperBoundRate
+        - range_note_upper_bound_rate
+        - range-note-upper-bound-rate
+        - rnubr
+        - range note upper bound rate rate
+        - range note upper bound rate %
+      RangeNoteUpperBoundCompareRule:
+        type: string
+        description: Range note upper bound compare rule.
+        aliases:
+        - range note upper bound compare rule
+        - RangeNoteUpperBoundCompareRule
+        - range_note_upper_bound_compare_rule
+        - range-note-upper-bound-compare-rule
+        - rnubcr
+      RangeNoteRefIndex:
+        type: string
+        description: Range note ref index.
+        aliases:
+        - range note ref index
+        - RangeNoteRefIndex
+        - range_note_ref_index
+        - range-note-ref-index
+        - rnri
+      RangeNoteRefIndexSpreads:
+        type: float
+        description: Range note ref index spreads.
+        aliases:
+        - range note ref index spreads
+        - RangeNoteRefIndexSpreads
+        - range_note_ref_index_spreads
+        - range-note-ref-index-spreads
+        - rnris
+      RangeNoteRefIndexMultipliers:
+        type: string
+        description: Range note ref index multipliers.
+        aliases:
+        - range note ref index multipliers
+        - RangeNoteRefIndexMultipliers
+        - range_note_ref_index_multipliers
+        - range-note-ref-index-multipliers
+        - rnrim
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: Portfolio date.
+        aliases:
+        - date
+        - portfolio date
+        - portfolio as of date
+        - PortfolioDate
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+        - as of portfolio date
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01700
+    - Show key metrics grouped by portfolio or instrument from PVR01700
+    - Filter by scenario/date fields and summarize results from PVR01700
+  pvr01900:
+    file_patterns:
+    - '*PVR01900*.nzf'
+    - PVR01900.nzf
+    description: 'Over-time premium payment events by instrument and as-of portfolio date. Use this table to analyze premium
+      payment dates and amounts.
+
+      '
+    aliases:
+    - PVR01900
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - payment terms
+    - coupon
+    - premium payments
+    - overtime premium
+    - PVR 01900
+    primary_key:
+    - DMRRunID
+    - InstrumentID
+    - PortfolioID
+    business_tags:
+    - cashflows
+    - payment-structure
+    - portfolio
+    - premium
+    - valuation
+    columns:
+      DMRRunID:
+        type: string
+        description: Dmrrun id.
+        aliases:
+        - dmrrun
+        - run id
+        - batch id
+        - dmrrun id
+        - dmr run id
+        - dmr id
+        - run batch id
+        - DMRRunID
+        - dmrrun_id
+        - dmrrun-id
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      OverTimePremiumPaymentDate:
+        type: date
+        description: Over time premium payment date.
+        aliases:
+        - date
+        - over time premium payment date
+        - OverTimePremiumPaymentDate
+        - over_time_premium_payment_date
+        - over-time-premium-payment-date
+        - otppd
+        - over time premium payment date date
+        - as of over time premium payment date
+      OverTimePremiumPaymentAmount:
+        type: float
+        description: Over time premium payment amount.
+        aliases:
+        - premium payment
+        - premium payments
+        - premium amount
+        - premium payment amount
+        - amt
+        - value
+        - amount
+        - over time premium payment amt
+        - over time premium payment amount
+        - OverTimePremiumPaymentAmount
+      PortfolioID:
+        type: string
+        description: Portfolio id.
+        aliases:
+        - book
+        - account
+        - portfolio
+        - portfolio id
+        - account id
+        - PortfolioID
+        - portfolio_id
+        - portfolio-id
+        - pi
+        - portfolio id identifier
+      PortfolioDate:
+        type: date
+        description: Portfolio date.
+        aliases:
+        - date
+        - portfolio date
+        - portfolio as of date
+        - PortfolioDate
+        - portfolio_date
+        - portfolio-date
+        - pd
+        - portfolio date date
+        - as of portfolio date
+    examples:
+    - Count instruments by portfolio for a given run/date using PVR01900
+    - Show key metrics grouped by portfolio or instrument from PVR01900
+    - Filter by scenario/date fields and summarize results from PVR01900
+  krd00100:
+    file_patterns:
+    - '*KRD00100*.nzf'
+    - KRD00100.nzf
+    description: 'Key Rate Duration (KRD) analytics by instrument/segment/scenario. Use this table to analyze risk bucket
+      sensitivities across segments for a valuation load.
+
+      '
+    aliases:
+    - KRD00100
+    - key rate duration
+    - krd
+    - risk buckets
+    - scenario
+    - scenarios
+    - krd analytics
+    - duration buckets
+    primary_key:
+    - ValuationLoadId
+    - InstrumentID
+    - ScenarioType
+    - SegmentId
+    business_tags:
+    - duration
+    - krd
+    - rates
+    - risk
+    - scenarios
+    columns:
+      ValuationLoadId:
+        type: string
+        description: Valuation load id.
+        aliases:
+        - valuation load
+        - valuation load id
+        - ValuationLoadId
+        - valuation_load_id
+        - valuation-load-id
+        - vli
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+      ScenarioType:
+        type: string
+        description: Scenario type.
+        aliases:
+        - scenario type
+        - ScenarioType
+        - scenario_type
+        - scenario-type
+        - st
+      SegmentId:
+        type: string
+        description: Segment id.
+        aliases:
+        - segment
+        - segment id
+        - SegmentId
+        - segment_id
+        - segment-id
+        - si
+      SegmentName:
+        type: string
+        description: Segment name.
+        aliases:
+        - segment name
+        - SegmentName
+        - segment_name
+        - segment-name
+        - sn
+      AnalyticValue:
+        type: float
+        description: Analytic value.
+        aliases:
+        - analytic value
+        - AnalyticValue
+        - analytic_value
+        - analytic-value
+        - av
+    examples:
+    - Sum analytic value by segment and scenario from KRD00100
+    - Compare KRD sensitivities across segments for a scenario
+    - Top instruments by absolute KRD analytic value
+  krd00200:
+    file_patterns:
+    - '*KRD00200*.nzf'
+    - KRD00200.nzf
+    description: 'Key Rate Duration (KRD) analytics values by instrument, segment, and scenario for a valuation load. Use
+      this table to analyze KRD analytic values across segments for risk reporting.
+
+      '
+    aliases:
+    - KRD00200
+    - key rate duration
+    - krd
+    - risk buckets
+    - scenario
+    - scenarios
+    - krd analytics
+    - risk segments
+    primary_key:
+    - ValuationLoadId
+    - InstrumentID
+    business_tags:
+    - krd
+    - rates
+    - risk
+    - scenarios
+    columns:
+      ScenarioType:
+        type: string
+        description: Scenario type.
+        aliases:
+        - scenario
+        - scenario type
+        - stress scenario
+        - ScenarioType
+        - scenario_type
+        - scenario-type
+        - st
+      SegmentId:
+        type: string
+        description: Segment id.
+        aliases:
+        - segment
+        - segment id
+        - SegmentId
+        - segment_id
+        - segment-id
+        - si
+      SegmentName:
+        type: string
+        description: Segment name.
+        aliases:
+        - segment name
+        - SegmentName
+        - segment_name
+        - segment-name
+        - sn
+      ValuationLoadId:
+        type: string
+        description: Valuation load id.
+        aliases:
+        - valuation load
+        - valuation load id
+        - ValuationLoadId
+        - valuation_load_id
+        - valuation-load-id
+        - vli
+      AnalyticValue:
+        type: string
+        description: Analytic value.
+        aliases:
+        - analytic value
+        - AnalyticValue
+        - analytic_value
+        - analytic-value
+        - av
+      InstrumentID:
+        type: string
+        description: Instrument id.
+        aliases:
+        - pool
+        - cusip
+        - security
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
+    examples:
+    - Sum analytic value by segment and scenario from KRD00200
+    - Compare KRD sensitivities across segments for a scenario
+    - Top instruments by absolute KRD analytic value
+  krd00300:
+    file_patterns:
+    - '*KRD00300*.nzf'
+    - KRD00300.nzf
+    description: 'Scenario curve/bucket definition points (start/end) for KRD-style analyses. Use this table to interpret
+      scenario bucket boundaries.
+
+      '
+    aliases:
+    - KRD00300
+    - key rate duration
+    - krd
+    - risk buckets
+    - scenario
+    - scenarios
+    - bucket definition
+    - scenario buckets
+    primary_key:
+    - ScenarioType
+    - StartPoint
+    - EndPoint
+    business_tags:
+    - krd
+    - rates
+    - risk
+    - scenarios
+    columns:
+      ScenarioType:
+        type: string
+        description: Scenario type.
+        aliases:
+        - scenario
+        - scenario type
+        - stress scenario
+        - ScenarioType
+        - scenario_type
+        - scenario-type
+        - st
+      StartPoint:
+        type: string
+        description: Start point.
+        aliases:
+        - start point
+        - StartPoint
+        - start_point
+        - start-point
+        - sp
+      EndPoint:
+        type: string
+        description: End point.
+        aliases:
+        - end point
+        - EndPoint
+        - end_point
+        - end-point
+        - ep
+    examples:
+    - Sum analytic value by segment and scenario from KRD00300
+    - Compare KRD sensitivities across segments for a scenario
+    - Top instruments by absolute KRD analytic value
+  pnl00100:
+    file_patterns:
+    - '*PNL00100*.nzf'
+    - PNL00100.nzf
+    description: 'Portfolio type reference for a valuation load. Use this table to map valuation loads to portfolio groupings/types.
+
+      '
+    aliases:
+    - PNL00100
+    - p&l
+    - profit and loss
+    - pnl
+    - portfolio type
+    - valuation load portfolio
+    primary_key:
+    - ValuationLoadId
+    - PortfolioType
+    business_tags:
+    - performance
+    - pnl
+    - portfolio
+    - reference
+    columns:
+      PortfolioType:
+        type: string
+        description: Portfolio type.
+        aliases:
+        - portfolio type
+        - PortfolioType
+        - portfolio_type
+        - portfolio-type
+        - pt
+      ValuationLoadId:
+        type: string
+        description: Valuation load id.
+        aliases:
+        - valuation load
+        - valuation load id
+        - ValuationLoadId
+        - valuation_load_id
+        - valuation-load-id
+        - vli
+    examples:
+    - List P&L runs and their descriptions from PNL00100
+    - Total return by instrument between two valuation loads
+    - Breakdown of total return into price/coupon/accrual components
+  pnl00200:
+    file_patterns:
+    - '*PNL00200*.nzf'
+    - PNL00200.nzf
+    description: 'P&L run metadata (name, description, version) for P&L processing. Use this table to identify and describe
+      P&L runs.
+
+      '
+    aliases:
+    - PNL00200
+    - p&l
+    - profit and loss
+    - pnl
+    - pnl run
+    - run metadata
+    primary_key:
+    - PlRunId
+    business_tags:
+    - performance
+    - pnl
+    - run-metadata
+    columns:
+      PlRunId:
+        type: string
+        description: Pl run id.
+        aliases:
+        - pl run
+        - pl run id
+        - PlRunId
+        - pl_run_id
+        - pl-run-id
+        - pri
+      RunVersion:
+        type: int
+        description: Run version.
+        aliases:
+        - run version
+        - RunVersion
+        - run_version
+        - run-version
+        - rv
+      RunName:
+        type: string
+        description: Run name.
+        aliases:
+        - name
+        - run name
+        - RunName
+        - run_name
+        - run-name
+        - rn
+      RunDescription:
+        type: string
+        description: Run description.
+        aliases:
+        - description
+        - run description
+        - RunDescription
+        - run_description
+        - run-description
+        - rd
+    examples:
+    - List P&L runs and their descriptions from PNL00200
+    - Total return by instrument between two valuation loads
+    - Breakdown of total return into price/coupon/accrual components
+  pnl00300:
+    file_patterns:
+    - '*PNL00300*.nzf'
+    - PNL00300.nzf
+    description: 'P&L attribution metrics by instrument across two valuation loads (day 0 vs day 1). Use this table to decompose
+      total return into price/coupon/accrual components.
+
+      '
+    aliases:
+    - PNL00300
+    - p&l
+    - profit and loss
+    - pnl
+    - payment terms
+    - coupon
+    - pricing
+    - oas
+    - price
+    - return attribution
+    - p&l attribution
+    primary_key:
+    - Day1ValuationLoadID
+    - Day1InstrumentID
+    business_tags:
+    - attribution
+    - payment-structure
+    - performance
+    - pnl
+    - pricing
+    columns:
+      Day1ValuationLoadID:
+        type: string
+        description: Day1 valuation load id.
+        aliases:
+        - day1 valuation load
+        - day1 valuation load id
+        - Day1ValuationLoadID
+        - day1_valuation_load_id
+        - day1-valuation-load-id
+        - dvli
+        - day1 valuation load id identifier
+        - day1 valuation load id id
+      Day1InstrumentID:
+        type: string
+        description: Day1 instrument id.
+        aliases:
+        - day1 instrument
+        - day1 instrument id
+        - Day1InstrumentID
+        - day1_instrument_id
+        - day1-instrument-id
+        - dii
+        - day1 instrument id identifier
+        - day1 instrument id id
+      TotalReturn:
+        type: float
+        description: Total return.
+        aliases:
+        - total return
+        - TotalReturn
+        - total_return
+        - total-return
+        - tr
+      PriceReturn:
+        type: float
+        description: Price return.
+        aliases:
+        - price return
+        - PriceReturn
+        - price_return
+        - price-return
+        - pr
+      CouponReturn:
+        type: float
+        description: Coupon return.
+        aliases:
+        - coupon return
+        - CouponReturn
+        - coupon_return
+        - coupon-return
+        - cr
+      AccrualReturn:
+        type: float
+        description: Accrual return.
+        aliases:
+        - accrual return
+        - AccrualReturn
+        - accrual_return
+        - accrual-return
+        - ar
+      Day0ValuationLoadID:
+        type: string
+        description: Day0 valuation load id.
+        aliases:
+        - day0 valuation load
+        - day0 valuation load id
+        - Day0ValuationLoadID
+        - day0_valuation_load_id
+        - day0-valuation-load-id
+        - dvli
+        - day0 valuation load id identifier
+        - day0 valuation load id id
+      Day0InstrumentID:
+        type: string
+        description: Day0 instrument id.
+        aliases:
+        - day0 instrument
+        - day0 instrument id
+        - Day0InstrumentID
+        - day0_instrument_id
+        - day0-instrument-id
+        - dii
+        - day0 instrument id identifier
+        - day0 instrument id id
+    examples:
+    - List P&L runs and their descriptions from PNL00300
+    - Total return by instrument between two valuation loads
+    - Breakdown of total return into price/coupon/accrual components
+  pnl01800:
+    file_patterns:
+    - '*PNL01800*.nzf'
+    - PNL01800.nzf
+    description: 'P&L index/path configuration (path, month, index type flags). Use this table to interpret index/path settings
+      used for P&L calculations.
+
+      '
+    aliases:
+    - PNL01800
+    - p&l
+    - profit and loss
+    - pnl
+    - index config
+    - path config
+    business_tags:
+    - configuration
+    - performance
+    - pnl
+    columns:
+      PATH:
+        type: string
+        description: Path.
+        aliases:
+        - path
+        - p
+        - path field 3
+        - path field 4
+        - path field 5
+      MONTH:
+        type: int
+        description: Month.
+        aliases:
+        - month
+        - m
+        - month field 3
+        - month field 4
+        - month field 5
+      IN_1MO:
+        type: string
+        description: In 1 mo.
+        aliases:
+        - in 1 mo
+        - IN_1MO
+        - in_1_mo
+        - in-1-mo
+        - i1m
+      INDEX_TYPE:
+        type: string
+        description: Index type.
+        aliases:
+        - index type
+        - INDEX_TYPE
+        - index-type
+        - it
+        - index type field 5
+    examples:
+    - List P&L runs and their descriptions from PNL01800
+    - Total return by instrument between two valuation loads
+    - Breakdown of total return into price/coupon/accrual components
 joins:
-  - left_table: "pvr00500"
-    right_table: "pvr00600"
-    left_keys: ["InstrumentID"]
-    right_keys: ["InstrumentID"]
-    join_type: "left"
-    description: "Attach contractual payment terms to payment structures"
+- left_table: pvr01000
+  right_table: pvr00100
+  left_keys:
+  - DmrRunID
+  - PortfolioID
+  right_keys:
+  - DmrRunID
+  - PortfolioID
+  join_type: inner
+  description: Attach run scenario/date context to portfolios in that run
+  risk_notes: 1:1 or 1:many depending on pvr00100 uniqueness; prefer pvr00100 unique on DmrRunID
+- left_table: pvr01000
+  right_table: pvr00400
+  left_keys:
+  - PortfolioID
+  right_keys:
+  - PortfolioID
+  join_type: inner
+  description: Expand portfolio to its instruments
+  risk_notes: 'Fan-out: portfolio -> many instruments'
+- left_table: pvr00400
+  right_table: pvr00600
+  left_keys:
+  - InstrumentID
+  - PortfolioID
+  right_keys:
+  - InstrumentID
+  - PortfolioID
+  join_type: left
+  description: Attach analytics measures to instrument master
+  risk_notes: If querying within a run context, also filter pvr00600 by DmrRunID to avoid mixing runs
+- left_table: pvr00600
+  right_table: pvr01100
+  left_keys:
+  - DmrRunID
+  - InstrumentID
+  - PortfolioID
+  right_keys:
+  - DMRRunID
+  - InstrumentID
+  - PortfolioID
+  join_type: left
+  description: Attach characteristics/loan rollups to analytics
+- left_table: pnl00300
+  right_table: krd00100
+  left_keys:
+  - Day1ValuationLoadID
+  - Day1InstrumentID
+  right_keys:
+  - ValuationLoadId
+  - InstrumentID
+  join_type: left
+  description: Link P&L attribution to KRD risk buckets
+  risk_notes: KRD is many rows per instrument -> fan-out; aggregate KRD before joining if needed
+- left_table: pvr01500
+  right_table: pvr01200
+  left_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  right_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  join_type: left
+  description: Attach detailed schedule/reset rules to payment structures
+  risk_notes: Potential 1:1; if multiple schedule rows exist, aggregate or filter by effective dates.
+- left_table: pvr01500
+  right_table: pvr01400
+  left_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  right_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  join_type: left
+  description: Attach step-rate coupon reset details to payment structures
+- left_table: pvr01500
+  right_table: pvr01600
+  left_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  right_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  join_type: left
+  description: Attach principal/notional paydown events to payment structures
+  risk_notes: Likely 1:many (multiple paydown dates) -> aggregate before joining for rollups.
+- left_table: pvr01500
+  right_table: pvr01700
+  left_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  right_keys:
+  - DMRRunID
+  - InstrumentID
+  - PaymentStructureID
+  join_type: left
+  description: Attach range note bounds/observation rules to payment structures
+- left_table: pvr01500
+  right_table: pvr01300
+  left_keys:
+  - DMRRunID
+  - InstrumentID
+  - PortfolioID
+  - PortfolioDate
+  right_keys:
+  - DMRRunID
+  - InstrumentID
+  - PortfolioID
+  - PortfolioDate
+  join_type: left
+  description: Attach option exercise fields to instrument within a portfolio snapshot
+- left_table: pvr01500
+  right_table: pvr01900
+  left_keys:
+  - DMRRunID
+  - InstrumentID
+  - PortfolioID
+  - PortfolioDate
+  right_keys:
+  - DMRRunID
+  - InstrumentID
+  - PortfolioID
+  - PortfolioDate
+  join_type: left
+  description: Attach premium payment events to instrument within a portfolio snapshot
+  risk_notes: 1:many possible -> aggregate premium amounts by instrument/date.
+- left_table: pvr01500
+  right_table: pvr00500
+  left_keys:
+  - InstrumentID
+  - PaymentStructureID
+  right_keys:
+  - InstrumentID
+  - PaymentStructureID
+  join_type: left
+  description: Attach contractual payment terms to payment structures
+- left_table: krd00100
+  right_table: krd00200
+  left_keys:
+  - ValuationLoadId
+  - InstrumentID
+  - ScenarioType
+  - SegmentId
+  right_keys:
+  - ValuationLoadId
+  - InstrumentID
+  - ScenarioType
+  - SegmentId
+  join_type: left
+  description: Attach additional KRD analytic values (if present) for the same valuation load/segment/scenario

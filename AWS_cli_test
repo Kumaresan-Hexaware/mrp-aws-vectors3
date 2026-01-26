@@ -2,9 +2,23 @@ Test S3 Vector stored.
 aws s3vectors list-vectors --vector-bucket-name <your-bucket> --index-name <your-index> --max-results 500
 aws s3vectors list-vectors --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx --max-results 500
 
+aws s3vectors get-vectors --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx --return-data true --keys "table::pvr00500::chunk21"
+
 python -m nl_analytics.tools.vector_index_checker --file PVR00100.nzf --table pvr00100
 
 aws s3vectors get-index  --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx
+
+
+aws s3vectors list-vectors --vector-bucket-name hexa-mrp-vec-us-east-1 --index-name hexa-mrp-vec-idx --output json | jq '.vectors | length'
+
+
+
+--return-data true
+
+aws s3vectors get-vectors \
+  --vector-bucket-name <bucket> \
+  --index-name <index> \
+  --keys "table::pvr00500::chunk21"
 
 {
     "index": {

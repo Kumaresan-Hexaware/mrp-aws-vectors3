@@ -40,6 +40,18 @@ class Settings:
     chunk_size: int
     chunk_overlap: int
 
+    # Retrieval quality (wide schemas)
+    rag_oversample_factor: int
+    rag_enable_rerank: bool
+    rag_schema_only_for_planning: bool
+    rag_schema_kinds: List[str]
+
+    # Enforce candidate-column allowlist during planning (prevents picking arbitrary columns)
+    rag_enforce_candidate_allowlist: bool
+
+    # Column resolver (shortlist)
+    col_resolver_max_candidates: int
+
     # S3 vector backend
     s3_vector_bucket: str
     s3_vector_prefix: str
@@ -103,6 +115,23 @@ def load_settings() -> Settings:
     chunk_size = int(_env("RAG_CHUNK_SIZE", str(cfg["rag"]["chunk_size"])))
     chunk_overlap = int(_env("RAG_CHUNK_OVERLAP", str(cfg["rag"]["chunk_overlap"])))
 
+    rag_oversample_factor = int(_env("RAG_OVERSAMPLE_FACTOR", str(cfg["rag"].get("oversample_factor", 5))))
+    rag_enable_rerank = _env_bool("RAG_ENABLE_RERANK", bool(cfg["rag"].get("enable_rerank", True)))
+    rag_schema_only_for_planning = _env_bool(
+        "RAG_SCHEMA_ONLY_FOR_PLANNING", bool(cfg["rag"].get("schema_only_for_planning", True))
+    )
+    rag_schema_kinds = _env_list(
+        "RAG_SCHEMA_KINDS",
+        list(cfg["rag"].get("schema_kinds", ["table", "join", "column", "alias", "schema"]))
+    )
+    rag_enforce_candidate_allowlist = _env_bool(
+        "RAG_ENFORCE_ALLOWLIST", bool(cfg["rag"].get("enforce_candidate_allowlist", True))
+    )
+
+    col_resolver_max_candidates = int(
+        _env("COL_RESOLVER_MAX_CANDIDATES", str(cfg.get("column_resolver", {}).get("max_candidates", 40)))
+    )
+
     s3_cfg = (cfg.get("rag") or {}).get("s3_vector") or {}
     s3_vector_bucket = _env("S3_VECTOR_BUCKET", str(s3_cfg.get("bucket", "")))
     s3_vector_prefix = _env("S3_VECTOR_PREFIX", str(s3_cfg.get("prefix", "nl-analytics/vectors")))
@@ -160,6 +189,14 @@ def load_settings() -> Settings:
         rag_min_score=rag_min_score,
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
+
+        rag_oversample_factor=rag_oversample_factor,
+        rag_enable_rerank=rag_enable_rerank,
+        rag_schema_only_for_planning=rag_schema_only_for_planning,
+        rag_schema_kinds=rag_schema_kinds,
+        rag_enforce_candidate_allowlist=rag_enforce_candidate_allowlist,
+
+        col_resolver_max_candidates=col_resolver_max_candidates,
         s3_vector_bucket=s3_vector_bucket,
         s3_vector_prefix=s3_vector_prefix,
         s3_vector_cache_dir=s3_vector_cache_dir,

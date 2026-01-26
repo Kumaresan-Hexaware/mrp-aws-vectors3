@@ -34,7 +34,9 @@ class SqlDialect:
 def dialect_for(db_type: str) -> SqlDialect:
     t = (db_type or "duckdb").strip().lower()
     if t == "athena":
-        return SqlDialect(ident_quote="`", try_cast_double_template="TRY_CAST({expr} AS DOUBLE)")
+        # Athena (Trino/Presto) does NOT support backticks for identifiers.
+        # Use ANSI double quotes for quoting identifiers.
+        return SqlDialect(ident_quote='"', try_cast_double_template="TRY_CAST({expr} AS DOUBLE)")
     if t in {"postgres", "postgresql", "pg"}:
         # Postgres has no TRY_CAST. For testing, emit a defensive CASE expression that
         # avoids hard failures on non-numeric strings.

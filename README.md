@@ -326,6 +326,51 @@ Usually encoding mismatch. Ensure:
 
 ---
 
+## Athena execution engine (workable setup)
+
+When `DB_TYPE=athena`, this app compiles SQL and executes it in **Amazon Athena**, then reads the CSV result back from the Athena output S3 location.
+
+### AWS setup steps
+
+1) **Create S3 buckets**
+   - Data bucket: stores your table files (recommended: Parquet)
+   - Results bucket/prefix: Athena query output (example: `s3://<RESULTS_BUCKET>/athena-results/`)
+
+2) **Put table data in S3** (recommended layout)
+   - `s3://<DATA_BUCKET>/mrp/pvr00600/ingest_dt=2026-01-25/part-000.parquet`
+   - `s3://<DATA_BUCKET>/mrp/pvr00500/ingest_dt=2026-01-25/part-000.parquet`
+
+   *Why Parquet:* much faster + cheaper than scanning big delimited text.
+
+3) **Create Glue database + tables**
+   - Create a Glue database (example: `mrp_db`)
+   - Use a Glue crawler (or DDL) to create tables matching your registry table names (e.g., `pvr00600`, `pvr00500`)
+   - Ensure column names match the registry (case-insensitive is usually OK in Athena)
+
+4) **Grant IAM permissions** to the role/user running the app
+   - `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetWorkGroup`, `athena:GetQueryResults`
+   - `glue:GetDatabase`, `glue:GetTables`, `glue:GetTable`, `glue:GetPartitions`
+   - `s3:GetObject`, `s3:PutObject`, `s3:ListBucket` on both data + results locations
+
+5) **Configure the app**
+   - In `config/<env>.yaml` set:
+     - `database.db_type: "athena"`
+     - `database.athena.database: "mrp_db"`
+     - `database.athena.output_location: "s3://<RESULTS_BUCKET>/athena-results/"`
+     - optionally `database.athena.workgroup`
+
+   Or use env vars:
+   - `DB_TYPE=athena`
+   - `ATHENA_DATABASE=mrp_db`
+   - `ATHENA_OUTPUT_LOCATION=s3://<RESULTS_BUCKET>/athena-results/`
+   - `ATHENA_WORKGROUP=<optional>`
+
+### Notes / gotchas
+
+- The Streamlit "Workspace" upload is still useful for **previewing** data locally, but Athena execution requires the same tables to exist in Glue/Athena.
+- If your source `.nzf` is large, convert to Parquet once (ETL) and query Parquet thereafter.
+- Partitioning (e.g. `ingest_dt=YYYY-MM-DD`) can drastically reduce scan cost.
+
 ## Production hardening checklist (recommended)
 
 - Persist standardized tables as Parquet to avoid reprocessing on every restart
@@ -340,3 +385,10 @@ Usually encoding mismatch. Ensure:
 ## License
 
 Internal prototype for extension and evaluation.
+
+
+### Wide-schema accuracy (500+ columns)
+- Column-level schema chunks are indexed for precise matching.
+- Candidate-column allowlist enforcement prevents the planner from selecting arbitrary columns.
+  - Config: `rag.enforce_candidate_allowlist: true`
+  - Env: `RAG_ENFORCE_ALLOWLIST=true`

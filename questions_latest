@@ -1,0 +1,296 @@
+Below are **sample user questions** you can ask for **each table**, using **aliases** (so you can validate the alias → column mapping), plus **join questions** and the **tables/keys needed for joins**.
+
+---
+
+## PVR00100 (run / portfolio header)
+
+**What it’s for:** run metadata, scenarios, portfolio date, valuation date.
+
+Example questions (using aliases):
+
+* “Show **run name** and **run description** for a given **dmr run id**.”
+* “List portfolios and **portfolio date** for the latest **valuation date**.”
+* “For a given **interest rate scenario**, show **prepayment scenario** and **volatility scenario**.”
+* “Count runs by **portfolio data source**.”
+
+Common joins:
+
+* Join to **PVR01000** using **PortfolioID + DmrRunID**
+* Join to **PVR00600 / PVR01100 / PVR01200** using **DmrRunID + PortfolioID (+ PortfolioDate if present)**
+
+---
+
+## PVR01000 (portfolio ↔ run map)
+
+**What it’s for:** minimal bridge table.
+
+Example questions:
+
+* “For a **portfolio id**, list all **dmr run ids**.”
+* “Count runs per **account** (portfolio).”
+
+Joins:
+
+* **PVR01000 ↔ PVR00100** on **PortfolioID + DmrRunID**
+* **PVR01000 ↔ PVR00600** on **PortfolioID + DmrRunID** (if needed)
+
+---
+
+## PVR00300 (OAS/price + modeling outputs by instrument)
+
+**What it’s for:** instrument-level modeling outputs (OAS, Price, prepay model, errors).
+
+Example questions:
+
+* “Top 20 instruments by **oas** and **price**.”
+* “Average **spread** (OAS) by **pricing source**.”
+* “Show **prepayment model** and **model version** for an **instrument id**.”
+* “List instruments where **modeling error** is not null.”
+
+Joins:
+
+* **PVR00300 ↔ PVR00600** on **InstrumentID**
+* **PVR00300 ↔ PVR00400** on **InstrumentID**
+* Often also by **PortfolioID / DmrRunID** if present in the other table.
+
+---
+
+## PVR00400 (instrument master / collateral & pool attributes)
+
+**What it’s for:** instrument characteristics (CUSIP, WALA, UPB, pool, product, ratings, geography).
+
+Example questions:
+
+* “Show **cusip**, **wala**, and **current upb** by **portfolio**.”
+* “Pool count by **portfolio** and **product type**.”
+* “Average **trade price** by **issuer** and **deal name**.”
+* “Filter instruments where **occupancy status** is ‘Owner’ and show **loan count**.”
+
+Joins:
+
+* **PVR00400 ↔ PVR00600** on **InstrumentID + PortfolioID**
+* **PVR00400 ↔ PVR00500** on **InstrumentID**
+* **PVR00400 ↔ PVR01100** on **InstrumentID + PortfolioID**
+
+---
+
+## PVR00500 (payment structure / coupon reset / margin / caps)
+
+**What it’s for:** payment structure and rate reset details (net margin, caps/floors, reset freq, coupon type).
+
+Example questions (aliases like “account”, “coupon”, “margin”, “cap”, “floor”):
+
+* “Average **net margin** by **coupon type**.”
+* “Show **life cap coupon rate** and **life floor coupon rate** for an **instrument id**.”
+* “Count by **payment type** and **payment frequency**.”
+* “List records where **range accrual** indicator is true.”
+
+Joins:
+
+* **PVR00500 ↔ PVR00600** on **InstrumentID**
+* **PVR00500 ↔ PVR01200/01400/01500/01600/01700** on **PaymentStructureID (+ InstrumentID, DMRRunID, PortfolioID, PortfolioDate when present)**
+
+---
+
+## PVR00600 (valuation analytics / risk measures)
+
+**What it’s for:** valuation outputs (OAS, price, duration, convexity, WAL, CPR/CFR, losses) + run ids.
+
+Example questions (aliases like “account”, “oas”, “wal”, “duration”, “loss”):
+
+* “Average **oas** by **account** (portfolio) for a given **dmr run id**.”
+* “Top 10 instruments by **wal** and **convexity**.”
+* “Show **cpr 1 year** and **lifetime cumulative loss** by **portfolio**.”
+* “List rows where **error message** is not null and show **runtime**.”
+
+Joins:
+
+* **PVR00600 ↔ PVR00400** on **InstrumentID + PortfolioID**
+* **PVR00600 ↔ PVR00300** on **InstrumentID**
+* **PVR00600 ↔ PVR00100** on **DmrRunID + PortfolioID**
+* **PVR00600 ↔ PVR01100** on **InstrumentID + PortfolioID + DMRRunID**
+
+---
+
+## PVR01100 (instrument analytics / exposures / borrower/loan attributes)
+
+**What it’s for:** broader instrument analytics incl. UPB, LTV, FICO, delinquency, scenario distributions.
+
+Example questions:
+
+* “Average **ltv** by **portfolio**.”
+* “Show **unpaid balance** (UPB) by **product type**.”
+* “Count instruments where **months in delinquency** > 0.”
+* “Average **current fico** by **account**.”
+
+Joins:
+
+* **PVR01100 ↔ PVR00600** on **InstrumentID + PortfolioID + DMRRunID**
+* **PVR01100 ↔ PVR00400** on **InstrumentID + PortfolioID**
+* **PVR01100 ↔ PVR00100** on **DMRRunID + PortfolioID (+ PortfolioDate)**
+
+---
+
+## PVR01200 (cashflow schedule / accruals / reset schedule details)
+
+**What it’s for:** payment schedule/accrual/reset schedule fields tied to payment structure.
+
+Example questions:
+
+* “Show **coupon**, **margin spread**, **index**, and **first reset date** for an instrument.”
+* “Count schedules by **payment structure type**.”
+* “List instruments where **floor rate** > 0.”
+
+Joins:
+
+* **PVR01200 ↔ PVR00500** on **InstrumentID + PaymentStructureID**
+* **PVR01200 ↔ PVR01400/01500/01600/01700** on shared keys:
+  **DMRRunID + InstrumentID + PaymentStructureID + PaymentStructureTypeCode + PortfolioID + PortfolioDate**
+
+---
+
+## PVR01300 (option exercise)
+
+**What it’s for:** option exercise date/price per instrument.
+
+Example questions:
+
+* “Show **option exercise date** and **option exercise price** by **account**.”
+* “Count instruments with option exercise in a given month.”
+
+Joins:
+
+* **PVR01300 ↔ PVR00400/PVR01100/PVR00600** on **InstrumentID + PortfolioID (+ DMRRunID when available)**
+
+---
+
+## PVR01400 (step-rate coupon resets)
+
+Example questions:
+
+* “Show **step rate reset date** and **step rate reset rate** by **payment structure type**.”
+* “Average **step rate reset rate** by **account**.”
+
+Joins:
+
+* with **PVR01200/PVR00500** via **InstrumentID + PaymentStructureID (+ other shared keys)**
+
+---
+
+## PVR01500 (historical variable rate resets)
+
+Example questions:
+
+* “Average **historical variable rate coupon percent** by **account** and **type code**.”
+* “List instruments where **historical var rate** > 0.”
+
+Joins:
+
+* with **PVR01200/PVR00500** via **InstrumentID + PaymentStructureID (+ other shared keys)**
+
+---
+
+## PVR01600 (principal/notional paydown)
+
+Example questions:
+
+* “Total **principal notional paydown amount** by **portfolio**.”
+* “Paydown trend by **paydown date**.”
+
+Joins:
+
+* with **PVR01200/PVR00500** via shared keys
+
+---
+
+## PVR01700 (range note periods)
+
+Example questions:
+
+* “Count range notes by **ref index** and **compare rule**.”
+* “Average **lower bound rate** and **upper bound rate** by **account**.”
+
+Joins:
+
+* with **PVR01200/PVR00500** via shared keys
+
+---
+
+## PVR01900 (over-time premium payments)
+
+Example questions:
+
+* “Total **over time premium payment amount** by **portfolio**.”
+* “Premium payments by **payment date**.”
+
+Joins:
+
+* with **PVR00400/PVR01100/PVR00600** via **InstrumentID + PortfolioID (+ DMRRunID)**
+
+---
+
+## PVR00900 (interest rate curve/scenario table)
+
+Example questions:
+
+* “Show **interest rate scenario** curve points for a given **interest rate date**.”
+* “Average **rate** by **maturity** for a scenario.”
+
+Joins:
+
+* **PVR00900 ↔ PVR00100** on **InterestRateDate + InterestRateScenario**
+
+---
+
+# Join question examples (and what tables they require)
+
+### 1) “For each **account**, show avg **oas**, avg **wal**, and avg **duration**.”
+
+* Tables: **PVR00600**
+* No join required (portfolio/account is inside PVR00600)
+
+### 2) “For each **account**, show avg **oas** and avg **net margin**.”
+
+* Tables: **PVR00600 + PVR00500**
+* Join: **InstrumentID** (optionally also PortfolioID if needed)
+
+### 3) “Show **cusip**, **wala**, avg **oas**, and avg **duration** by portfolio.”
+
+* Tables: **PVR00400 + PVR00600**
+* Join: **InstrumentID + PortfolioID**
+
+### 4) “For each portfolio, compare **ltv** vs **oas** (scatter).”
+
+* Tables: **PVR01100 + PVR00600**
+* Join: **InstrumentID + PortfolioID + DMRRunID**
+
+### 5) “For each run, show **run name** and avg **oas** by portfolio.”
+
+* Tables: **PVR00100 + PVR00600**
+* Join: **DmrRunID + PortfolioID**
+
+### 6) “Show payment reset schedule fields with step-rate resets and historical var resets.”
+
+* Tables: **PVR01200 + PVR01400 + PVR01500**
+* Join keys: **DMRRunID + InstrumentID + PaymentStructureID + PaymentStructureTypeCode + PortfolioID + PortfolioDate**
+
+### 7) “Show premium payments and instrument attributes (CUSIP / product type).”
+
+* Tables: **PVR01900 + PVR00400**
+* Join: **InstrumentID + PortfolioID**
+
+---
+
+# Quick “join map” (most common)
+
+* **Portfolio/Run header:** `PVR00100`
+* **Risk/valuation metrics:** `PVR00600`
+* **Instrument master:** `PVR00400`
+* **Borrower/loan analytics:** `PVR01100`
+* **Payment structure:** `PVR00500`
+* **Schedule/resets:** `PVR01200/01400/01500/01600/01700`
+* **Options:** `PVR01300`
+* **Premium cashflows:** `PVR01900`
+* **Interest rate scenarios/curve points:** `PVR00900`
+
+If you tell me which **2–3 “core business questions”** you demo most (pricing, delinquency, prepay, resets, etc.), I can tailor a smaller “golden set” of join questions that always produce clean results in your app.

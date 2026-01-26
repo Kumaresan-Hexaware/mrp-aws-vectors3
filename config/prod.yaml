@@ -1,43 +1,50 @@
 app:
-  env: "prod"
-  log_level: "INFO"
-
+  env: prod
+  log_level: INFO
 ingestion:
-  delimiter: "Ç"
-  fallback_encodings: ["utf-8", "latin-1"]
+  delimiter: "\xC7"
+  fallback_encodings:
+  - utf-8
+  - latin-1
   skip_bad_lines: true
   max_rows_preview: 5000
-
 rag:
-  backend: "chroma"
+  backend: chroma
   s3vectors:
-    bucket: ""
-    index: ""
-    namespace: "default"
+    bucket: ''
+    index: ''
+    namespace: default
     refresh_seconds: 300
   s3_vector:
-    bucket: ""
-    prefix: "nl-analytics/vectors"
-    cache_dir: ".s3_vector_cache"
+    bucket: ''
+    prefix: nl-analytics/vectors
+    cache_dir: .s3_vector_cache
     refresh_seconds: 300
-  chroma_dir: ".chroma"
+  chroma_dir: .chroma
   top_k: 8
   min_score: 0.25
   chunk_size: 900
   chunk_overlap: 80
-
+  oversample_factor: 5
+  enable_rerank: true
+  schema_only_for_planning: true
+  schema_kinds:
+  - table
+  - join
+  - column
+  enforce_candidate_allowlist: true
+column_resolver:
+  max_candidates: 40
 agent:
   min_confidence: 0.45
   refuse_below_confidence: true
-
 models:
-  provider: "bedrock"
-  region: "us-east-1"
-  chat_model_id: "anthropic.claude-3-haiku-20240307-v1:0"
-  embed_model_id: "amazon.titan-embed-text-v1"
+  provider: bedrock
+  region: us-east-1
+  chat_model_id: anthropic.claude-3-haiku-20240307-v1:0
+  embed_model_id: amazon.titan-embed-text-v1
   temperature: 0.1
   max_tokens: 1200
-
 export:
-  export_dir: "data/exports"
-  saved_query_dir: "data/saved_queries"
+  export_dir: data/exports
+  saved_query_dir: data/saved_queries

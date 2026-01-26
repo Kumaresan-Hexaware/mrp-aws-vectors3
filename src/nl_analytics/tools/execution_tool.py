@@ -337,6 +337,57 @@ def _filters_sql(filters: List[str], col_ref: Dict[str, str], dialect: SqlDialec
     return "WHERE " + " AND ".join(safe_parts)
 
 
+def _choose_base_table(plan: QueryPlan, tables: List[str]) -> str:
+    """Choose a driving (root) table for the FROM/JOIN clause.
+
+    The execution layer builds a join path starting from the first table in `tables`.
+    In earlier revisions we referenced this helper but never defined it, which causes:
+      NameError: name '_choose_base_table' is not defined
+
+    A *perfect* choice would consider where filters/dimensions originate so that JOIN
+    direction (especially for LEFT JOIN graphs) preserves expected semantics.
+
+    For now, we use a deterministic heuristic that works well for the most common
+    PVR join patterns in this project:
+      - schedule/reset questions: drive from PVR01200 (schedule)
+      - payment structure questions: drive from PVR00500
+      - valuation/risk questions: drive from PVR00600
+      - otherwise: keep the existing order (first table)
+
+    This fixes the runtime error and yields stable, predictable SQL.
+    """
+
+    if not tables:
+        return ""
+
+    # Normalize to lowercase for matching.
+    tset = {str(t).strip().lower(): t for t in tables}
+
+    priority = [
+        "pvr01200",  # payment schedule / resets (best anchor for 012/014/015/016/017 joins)
+        "pvr00500",  # payment structure / margins / caps
+        "pvr00600",  # valuation analytics / risk metrics
+        "pvr01100",  # loan/instrument analytics
+        "pvr00400",  # instrument master
+        "pvr00300",  # modeling outputs
+        "pvr00100",  # run header
+        "pvr01000",  # run-portfolio bridge
+        "pvr01300",  # option exercise
+        "pvr01400",
+        "pvr01500",
+        "pvr01600",
+        "pvr01700",
+        "pvr01900",
+        "pvr00900",
+    ]
+
+    for p in priority:
+        if p in tset:
+            return tset[p]
+
+    return tables[0]
+
+
 def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     registry = session.registry
     db_type = (session.settings.db_type or "duckdb").strip().lower()
@@ -344,6 +395,11 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
 
     # Resolve plan tables to registry-canonical names (case-insensitive)
     tables = [session.canonical_table_name(t) for t in plan.tables]
+
+    # Choose driving table for correct LEFT JOIN semantics (important for filters on joined tables)
+    base = _choose_base_table(plan, tables)
+    if base and tables and base != tables[0]:
+        tables = [base] + [t for t in tables if t != base]
 
     # Build column->qualified reference map to prevent ambiguous column errors
     col_ref = _build_column_ref_map(registry, tables)
