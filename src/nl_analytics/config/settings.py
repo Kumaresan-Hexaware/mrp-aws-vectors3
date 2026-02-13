@@ -95,6 +95,23 @@ class Settings:
     redshift_db_user: str
     redshift_secret_arn: str
 
+    # ------------------------------------------------------------------
+    # Query persistence (optional)
+    # ------------------------------------------------------------------
+    query_store_backend: str
+    query_store_dir: str
+
+
+    query_store_mode: str
+    # DynamoDB query store (when query_store_backend = dynamodb)
+    dynamodb_table_name: str
+    dynamodb_pk_name: str
+    dynamodb_sk_name: str
+    dynamodb_region: str
+    dynamodb_endpoint_url: str
+    dynamodb_ttl_attribute: str
+    dynamodb_ttl_seconds: int
+
 def load_settings() -> Settings:
     app_env = _env("APP_ENV", "dev")
     cfg_path = Path("config") / f"{app_env}.yaml"
@@ -176,6 +193,29 @@ def load_settings() -> Settings:
     redshift_db_user = _env("REDSHIFT_DB_USER", str(rs_cfg.get("db_user", ""))) or ""
     redshift_secret_arn = _env("REDSHIFT_SECRET_ARN", str(rs_cfg.get("secret_arn", ""))) or ""
 
+    # ------------------------------ Query persistence ------------------------------
+    obs_cfg = (cfg.get("observability") or {})
+    qs_cfg = (obs_cfg.get("query_store") or {})
+
+    query_store_backend = _env("QUERY_STORE_BACKEND", str(qs_cfg.get("backend", "none"))) or "none"
+    query_store_dir = _env("QUERY_STORE_DIR", str(qs_cfg.get("dir", "data/query_logs"))) or "data/query_logs"
+
+    query_store_mode = _env("DYNAMODB_MODE", _env("QUERY_STORE_MODE", str(qs_cfg.get("mode", "detailed")))) or "detailed"
+
+    ddb_cfg = (qs_cfg.get("dynamodb") or {})
+    dynamodb_table_name = _env("DYNAMODB_TABLE_NAME", str(ddb_cfg.get("table_name", ""))) or ""
+    dynamodb_pk_name = _env("DYNAMODB_PK_NAME", str(ddb_cfg.get("pk_name", "session_id"))) or "session_id"
+    # Allow PK-only tables: if DYNAMODB_SK_NAME is set to an empty string, keep it empty.
+    _sk_env = os.environ.get("DYNAMODB_SK_NAME")
+    if _sk_env is not None:
+        dynamodb_sk_name = _sk_env
+    else:
+        dynamodb_sk_name = _env("DYNAMODB_SK_NAME", str(ddb_cfg.get("sk_name", "sk"))) or "sk"
+    dynamodb_region = _env("DYNAMODB_REGION", str(ddb_cfg.get("region", aws_region))) or aws_region
+    dynamodb_endpoint_url = _env("DYNAMODB_ENDPOINT_URL", str(ddb_cfg.get("endpoint_url", ""))) or ""
+    dynamodb_ttl_attribute = _env("DYNAMODB_TTL_ATTRIBUTE", str(ddb_cfg.get("ttl_attribute", "expires_at"))) or "expires_at"
+    dynamodb_ttl_seconds = int(_env("DYNAMODB_TTL_SECONDS", str(ddb_cfg.get("ttl_seconds", 30 * 24 * 3600))))
+
     return Settings(
         env=app_env,
         log_level=_env("LOG_LEVEL", cfg["app"]["log_level"]),
@@ -226,4 +266,15 @@ def load_settings() -> Settings:
         redshift_workgroup_name=redshift_workgroup_name,
         redshift_db_user=redshift_db_user,
         redshift_secret_arn=redshift_secret_arn,
+
+        query_store_backend=query_store_backend,
+        query_store_dir=query_store_dir,
+        query_store_mode=query_store_mode,
+        dynamodb_table_name=dynamodb_table_name,
+        dynamodb_pk_name=dynamodb_pk_name,
+        dynamodb_sk_name=dynamodb_sk_name,
+        dynamodb_region=dynamodb_region,
+        dynamodb_endpoint_url=dynamodb_endpoint_url,
+        dynamodb_ttl_attribute=dynamodb_ttl_attribute,
+        dynamodb_ttl_seconds=dynamodb_ttl_seconds,
     )

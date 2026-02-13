@@ -17,37 +17,17 @@ tables:
 
       '
     aliases:
-    - PVR00100
-    - portfolio valuation
-    - valuation results
-    - pvr
-    - scenario
-    - scenarios
-    - interest rates
-    - rates
-    - payment terms
-    - coupon
-    - prepayment
-    - cpr
-    - PVR 00100
+    - portfolio valuation run
     primary_key:
     - DmrRunID
     business_tags:
-    - as-of
-    - payment-structure
-    - portfolio
-    - prepayment
-    - rates
-    - run-metadata
-    - scenarios
-    - valuation
+    - portfolio valuation run
     columns:
       DmrRunID:
         type: string
         description: Dmr run id.
         aliases:
         - run id
-        - dmr run
         - batch id
         - dmr run id
         - dmr id
@@ -68,13 +48,11 @@ tables:
         - PortfolioID
         - portfolio_id
         - portfolio-id
-        - pi
         - portfolio id identifier
       PortfolioDate:
         type: date
         description: Portfolio date.
         aliases:
-        - date
         - portfolio date
         - portfolio as of date
         - PortfolioDate
@@ -87,7 +65,6 @@ tables:
         type: date
         description: Valuation date.
         aliases:
-        - date
         - valuation date
         - ValuationDate
         - valuation_date
@@ -99,7 +76,6 @@ tables:
         type: date
         description: Interest rate date.
         aliases:
-        - date
         - interest rate date
         - InterestRateDate
         - interest_rate_date
@@ -120,7 +96,6 @@ tables:
         type: date
         description: Volatility date.
         aliases:
-        - date
         - volatility date
         - VolatilityDate
         - volatility_date
@@ -164,9 +139,7 @@ tables:
     - '*PVR00200*.nzf'
     - PVR00200.nzf
     description: 'Run-level metadata for PRiMA portfolio valuation (scenario selection, run dates, versions). Use this table
-      to audit run configuration and scenario versions used in a valuation run.
-
-      '
+      to audit run configuration and scenario versions used in a valuation run. '
     aliases:
     - PVR00200
     - portfolio valuation
@@ -208,7 +181,6 @@ tables:
         type: string
         description: Run name.
         aliases:
-        - name
         - run name
         - RunName
         - run_name
@@ -305,7 +277,6 @@ tables:
         type: date
         description: Interest rate date.
         aliases:
-        - date
         - interest rate date
         - InterestRateDate
         - interest_rate_date
@@ -317,7 +288,6 @@ tables:
         type: date
         description: Volatility date.
         aliases:
-        - date
         - volatility date
         - VolatilityDate
         - volatility_date
@@ -329,7 +299,6 @@ tables:
         type: date
         description: Hpi as of date.
         aliases:
-        - date
         - hpi as of date
         - HpiAsOfDate
         - hpi_as_of_date
@@ -341,7 +310,6 @@ tables:
         type: date
         description: Hpi utility date.
         aliases:
-        - date
         - hpi utility date
         - HpiUtilityDate
         - hpi_utility_date
@@ -353,7 +321,6 @@ tables:
         type: date
         description: Valuation date.
         aliases:
-        - date
         - valuation date
         - ValuationDate
         - valuation_date
@@ -365,7 +332,6 @@ tables:
         type: date
         description: Run date.
         aliases:
-        - date
         - run date
         - RunDate
         - run_date
@@ -462,10 +428,8 @@ tables:
     file_patterns:
     - '*PVR00300*.nzf'
     - PVR00300.nzf
-    description: 'Instrument-level pricing and prepayment model outputs used in valuation (OAS, price, factors, errors). Use
-      this table to analyze pricing inputs/outputs and modeling diagnostics by aggregated instrument.
-
-      '
+    description: 'Instrument-level pricing and prepayment model outputs used in valuation . Use
+      this table to analyze pricing inputs/outputs and modeling diagnostics by aggregated instrument.'
     aliases:
     - PVR00300
     - portfolio valuation
@@ -696,7 +660,6 @@ tables:
         type: date
         description: Pricing date.
         aliases:
-        - date
         - pricing date
         - PricingDate
         - pricing_date
@@ -882,9 +845,6 @@ tables:
         type: float
         description: Pricing spread amount.
         aliases:
-        - amt
-        - value
-        - amount
         - pricing spread amt
         - pricing spread amount
         - PricingSpreadAmount
@@ -917,7 +877,6 @@ tables:
     - PVR 00400
     primary_key:
     - InstrumentID
-    - PortfolioID
     business_tags:
     - balances
     - instruments
@@ -1031,9 +990,7 @@ tables:
     - '*PVR00500*.nzf'
     - PVR00500.nzf
     description: 'Instrument payment terms and structure settings (caps/floors, index, reset, schedule, conventions). Use
-      this table to analyze payment structure features and contractual terms.
-
-      '
+      this table to analyze payment structure features and contractual terms.'
     aliases:
     - PVR00500
     - portfolio valuation
@@ -1061,7 +1018,6 @@ tables:
         description: Instrument id.
         aliases:
         - pool
-        - cusip
         - security
         - instrument
         - instrument id
@@ -1097,7 +1053,6 @@ tables:
         type: string
         description: Payment type code.
         aliases:
-        - code
         - payment type
         - payment type code
         - PaymentTypeCode
@@ -1136,7 +1091,6 @@ tables:
         type: float
         description: Instrument coupon type code.
         aliases:
-        - code
         - instrument coupon type
         - instrument coupon type code
         - InstrumentCouponTypeCode
@@ -1186,7 +1140,6 @@ tables:
         type: string
         description: Payment frequency type code.
         aliases:
-        - code
         - payment frequency type
         - payment frequency type code
         - PaymentFrequencyTypeCode
@@ -1227,7 +1180,6 @@ tables:
         type: string
         description: Amortization type code.
         aliases:
-        - code
         - amortization type
         - amortization type code
         - AmortizationTypeCode
@@ -1239,7 +1191,6 @@ tables:
         type: int
         description: Day count code.
         aliases:
-        - code
         - day count
         - day count code
         - DayCountCode
@@ -1251,7 +1202,6 @@ tables:
         type: date
         description: Final payment date.
         aliases:
-        - date
         - final payment date
         - FinalPaymentDate
         - final_payment_date
@@ -1272,7 +1222,6 @@ tables:
         type: string
         description: Armindex code.
         aliases:
-        - code
         - armindex
         - armindex code
         - ARMIndexCode
@@ -1453,7 +1402,6 @@ tables:
         type: date
         description: Conversion date.
         aliases:
-        - date
         - conversion date
         - ConversionDate
         - conversion_date
@@ -1465,7 +1413,6 @@ tables:
         type: date
         description: First rate reset date.
         aliases:
-        - date
         - first rate reset date
         - FirstRateResetDate
         - first_rate_reset_date
@@ -1477,7 +1424,6 @@ tables:
         type: date
         description: First payment date.
         aliases:
-        - date
         - first payment date
         - FirstPaymentDate
         - first_payment_date
@@ -1507,7 +1453,6 @@ tables:
         type: string
         description: Interest currency code.
         aliases:
-        - code
         - interest currency
         - interest currency code
         - InterestCurrencyCode
@@ -1559,7 +1504,6 @@ tables:
         type: string
         description: Payment structure type code.
         aliases:
-        - code
         - type code
         - payment type
         - structure type
@@ -1573,7 +1517,6 @@ tables:
         type: string
         description: Payment calendar code.
         aliases:
-        - code
         - payment calendar
         - payment calendar code
         - PaymentCalendarCode
@@ -1594,7 +1537,6 @@ tables:
         type: string
         description: Payment method code.
         aliases:
-        - code
         - payment method
         - payment method code
         - PaymentMethodCode
@@ -1606,7 +1548,6 @@ tables:
         type: string
         description: Principal currency code.
         aliases:
-        - code
         - principal currency
         - principal currency code
         - PrincipalCurrencyCode
@@ -1645,7 +1586,6 @@ tables:
         type: string
         description: Range note obs calendar code.
         aliases:
-        - code
         - range note obs calendar
         - range note obs calendar code
         - RangeNoteObsCalendarCode
@@ -1657,7 +1597,6 @@ tables:
         type: string
         description: Reset calendar code.
         aliases:
-        - code
         - reset calendar
         - reset calendar code
         - ResetCalendarCode
@@ -1669,7 +1608,6 @@ tables:
         type: string
         description: Reset roll convention code.
         aliases:
-        - code
         - reset roll convention
         - reset roll convention code
         - ResetRollConventionCode
@@ -1681,7 +1619,6 @@ tables:
         type: string
         description: Reset method code.
         aliases:
-        - code
         - reset method
         - reset method code
         - ResetMethodCode
@@ -1711,7 +1648,6 @@ tables:
         type: string
         description: Blmamortization type code.
         aliases:
-        - code
         - blmamortization type
         - blmamortization type code
         - BLMAmortizationTypeCode
@@ -1823,7 +1759,6 @@ tables:
         type: date
         description: Front stub end date.
         aliases:
-        - date
         - front stub end date
         - FrontStubEndDate
         - front_stub_end_date
@@ -1835,7 +1770,6 @@ tables:
         type: date
         description: Back stub start date.
         aliases:
-        - date
         - back stub start date
         - BackStubStartDate
         - back_stub_start_date
@@ -1852,9 +1786,8 @@ tables:
     - '*PVR00600*.nzf'
     - PVR00600.nzf
     description: 'Instrument-level analytics outputs for a valuation run (e.g., OAS, price, duration, WAL, CPR). Use this
-      table to analyze pricing and risk measures by instrument and portfolio.
+      table to analyze pricing and risk measures by instrument and portfolio.'
 
-      '
     aliases:
     - PVR00600
     - portfolio valuation
@@ -1868,10 +1801,7 @@ tables:
     - valuation analytics
     - PVR 00600
     primary_key:
-    - DmrRunID
-    - PortfolioID
     - InstrumentID
-    - RunID
     business_tags:
     - analytics
     - portfolio
@@ -2160,9 +2090,7 @@ tables:
     - instrument characteristics
     - PVR 01100
     primary_key:
-    - DMRRunID
     - InstrumentID
-    - PortfolioID
     business_tags:
     - balances
     - characteristics
@@ -3417,9 +3345,7 @@ tables:
     - notional paydown
     - PVR 01600
     primary_key:
-    - DMRRunID
     - InstrumentID
-    - PaymentStructureID
     business_tags:
     - cashflows
     - paydown
@@ -3769,9 +3695,7 @@ tables:
     - overtime premium
     - PVR 01900
     primary_key:
-    - DMRRunID
     - InstrumentID
-    - PortfolioID
     business_tags:
     - cashflows
     - payment-structure
@@ -3811,7 +3735,6 @@ tables:
         type: date
         description: Over time premium payment date.
         aliases:
-        - date
         - over time premium payment date
         - OverTimePremiumPaymentDate
         - over_time_premium_payment_date
@@ -3851,7 +3774,6 @@ tables:
         type: date
         description: Portfolio date.
         aliases:
-        - date
         - portfolio date
         - portfolio as of date
         - PortfolioDate
@@ -3882,10 +3804,7 @@ tables:
     - krd analytics
     - duration buckets
     primary_key:
-    - ValuationLoadId
     - InstrumentID
-    - ScenarioType
-    - SegmentId
     business_tags:
     - duration
     - krd
@@ -4425,10 +4344,8 @@ joins:
   right_table: pvr00600
   left_keys:
   - InstrumentID
-  - PortfolioID
   right_keys:
   - InstrumentID
-  - PortfolioID
   join_type: left
   description: Attach analytics measures to instrument master
   risk_notes: If querying within a run context, also filter pvr00600 by DmrRunID to avoid mixing runs
@@ -4437,11 +4354,8 @@ joins:
   left_keys:
   - DmrRunID
   - InstrumentID
-  - PortfolioID
   right_keys:
-  - DMRRunID
   - InstrumentID
-  - PortfolioID
   join_type: left
   description: Attach characteristics/loan rollups to analytics
 - left_table: pnl00300
@@ -4458,79 +4372,51 @@ joins:
 - left_table: pvr01500
   right_table: pvr01200
   left_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   right_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   join_type: left
   description: Attach detailed schedule/reset rules to payment structures
   risk_notes: Potential 1:1; if multiple schedule rows exist, aggregate or filter by effective dates.
 - left_table: pvr01500
   right_table: pvr01400
   left_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   right_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   join_type: left
   description: Attach step-rate coupon reset details to payment structures
 - left_table: pvr01500
   right_table: pvr01600
   left_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   right_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   join_type: left
   description: Attach principal/notional paydown events to payment structures
   risk_notes: Likely 1:many (multiple paydown dates) -> aggregate before joining for rollups.
 - left_table: pvr01500
   right_table: pvr01700
   left_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   right_keys:
-  - DMRRunID
   - InstrumentID
-  - PaymentStructureID
   join_type: left
   description: Attach range note bounds/observation rules to payment structures
 - left_table: pvr01500
   right_table: pvr01300
   left_keys:
-  - DMRRunID
   - InstrumentID
-  - PortfolioID
-  - PortfolioDate
   right_keys:
-  - DMRRunID
   - InstrumentID
-  - PortfolioID
-  - PortfolioDate
   join_type: left
   description: Attach option exercise fields to instrument within a portfolio snapshot
 - left_table: pvr01500
   right_table: pvr01900
   left_keys:
-  - DMRRunID
   - InstrumentID
-  - PortfolioID
-  - PortfolioDate
   right_keys:
-  - DMRRunID
   - InstrumentID
-  - PortfolioID
-  - PortfolioDate
   join_type: left
   description: Attach premium payment events to instrument within a portfolio snapshot
   risk_notes: 1:many possible -> aggregate premium amounts by instrument/date.
@@ -4538,23 +4424,15 @@ joins:
   right_table: pvr00500
   left_keys:
   - InstrumentID
-  - PaymentStructureID
   right_keys:
   - InstrumentID
-  - PaymentStructureID
   join_type: left
   description: Attach contractual payment terms to payment structures
 - left_table: krd00100
   right_table: krd00200
   left_keys:
-  - ValuationLoadId
   - InstrumentID
-  - ScenarioType
-  - SegmentId
   right_keys:
-  - ValuationLoadId
   - InstrumentID
-  - ScenarioType
-  - SegmentId
   join_type: left
   description: Attach additional KRD analytic values (if present) for the same valuation load/segment/scenario

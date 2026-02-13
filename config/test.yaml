@@ -48,3 +48,15 @@ models:
 export:
   export_dir: data/exports
   saved_query_dir: data/saved_queries
+
+# Optional: persist user questions, LLM plans, SQL and confidence scores.
+observability:
+  query_store:
+    backend: none   # none | file | dynamodb
+    dir: data/query_logs
+    dynamodb:
+      table_name: ''
+      region: us-east-1
+      endpoint_url: ''
+      ttl_attribute: expires_at
+      ttl_seconds: 2592000  # 30 days

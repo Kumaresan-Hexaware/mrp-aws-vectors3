@@ -193,6 +193,26 @@ Then ask:
 - `EXPORT_DIR` (default `data/exports`)
 - `SAVED_QUERY_DIR` (default `data/saved_queries`)
 
+#### Query audit logging (optional)
+Persist each user question, retrieval summary, raw/validated plan, SQL, and confidence scores.
+
+- `QUERY_STORE_BACKEND` (`none` | `file` | `dynamodb`)
+- `QUERY_STORE_DIR` (when `file`; default `data/query_logs`)
+
+For DynamoDB:
+- `DYNAMODB_TABLE_NAME` (required)
+- `DYNAMODB_PK_NAME` (default `session_id`)
+- `DYNAMODB_SK_NAME` (default `sk`)
+- `DYNAMODB_REGION` (default: `AWS_REGION`)
+- `DYNAMODB_ENDPOINT_URL` (optional; e.g., LocalStack)
+- `DYNAMODB_TTL_ATTRIBUTE` (default `expires_at`)
+- `DYNAMODB_TTL_SECONDS` (default `2592000` = 30 days)
+
+Create the table (one-time):
+```bash
+python scripts/create_dynamodb_table.py
+```
+
 ---
 
 ## Using Amazon Bedrock

@@ -14,10 +14,8 @@ rag:
   oversample_factor: 5
   enable_rerank: true
   enforce_candidate_allowlist: true
-
   column_resolver:
     max_candidates: 50
-
   backend: chroma
   s3vectors:
     bucket: ''
@@ -57,6 +55,20 @@ models:
 export:
   export_dir: data/exports
   saved_query_dir: data/saved_queries
+
+# Optional: persist user questions, LLM plans, SQL and confidence scores.
+observability:
+  query_store:
+    backend: none   # none | file | dynamodb
+    dir: data/query_logs
+    dynamodb:
+      table_name: ''
+      region: us-east-1
+      endpoint_url: ''
+      ttl_attribute: expires_at
+      ttl_seconds: 2592000
+      pk_name: session_id
+      sk_name: sk
 database:
   db_type: duckdb
   athena:
@@ -70,3 +82,15 @@ database:
     workgroup_name: ''
     db_user: ''
     secret_arn: ''
+query_store:
+  backend: none
+  dir: data/query_logs
+  mode: detailed
+  dynamodb:
+    table_name: ''
+    pk_name: session_id
+    sk_name: sk
+    region: us-east-1
+    endpoint_url: ''
+    ttl_attribute: expires_at
+    ttl_seconds: 2592000

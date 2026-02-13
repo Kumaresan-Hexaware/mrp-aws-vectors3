@@ -405,6 +405,13 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     col_ref = _build_column_ref_map(registry, tables)
     sql = _compile_sql(registry, plan, tables, col_ref, dialect)
 
+    # Expose SQL to the session (for downstream persistence / audit logging).
+    try:
+        session.last_sql = sql
+        session.last_db_type = db_type
+    except Exception:
+        pass
+
     # Always print the engine SQL used for execution (today: DuckDB).
     log.info(f"{db_type.upper()} SQL :::\n{sql}")
 

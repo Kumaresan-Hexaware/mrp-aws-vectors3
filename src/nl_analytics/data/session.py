@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 import pandas as pd
+import uuid
 
 from nl_analytics.schema.registry import SchemaRegistry
 from nl_analytics.config.settings import Settings
@@ -23,6 +24,13 @@ class DataSession:
 
     registry: SchemaRegistry
     settings: Settings
+
+    # Stable id for this running app/session. Used to group query traces.
+    session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+    # Last SQL executed (best-effort; populated by execution_tool).
+    last_sql: Optional[str] = None
+    last_db_type: Optional[str] = None
     # Aggregated tables (logical table -> combined dataframe)
     tables: Dict[str, pd.DataFrame] = field(default_factory=dict)
 

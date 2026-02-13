@@ -8,6 +8,7 @@ import json
 import hashlib
 from pathlib import Path
 import re
+import traceback
 
 from nl_analytics.config.settings import Settings
 from nl_analytics.schema.registry import SchemaRegistry
@@ -26,6 +27,8 @@ from nl_analytics.tools.execution_tool import execute_plan
 from nl_analytics.viz.plotly_factory import build_figure
 from nl_analytics.exceptions.errors import RetrievalError, SchemaValidationError, AgentExecutionError, PlotlyRenderError
 from nl_analytics.logging.logger import get_logger
+from nl_analytics.store import build_query_store
+from nl_analytics.store.types import QueryIdentity
 
 
 log = get_logger("agents.orchestrator")
@@ -46,6 +49,7 @@ class AgentOrchestrator:
     def __init__(self, settings: Settings, registry: SchemaRegistry):
         self.settings = settings
         self.registry = registry
+        self.query_store = build_query_store(settings)
 
         self.bedrock = BedrockClient(
             BedrockConfig(
@@ -399,6 +403,43 @@ class AgentOrchestrator:
         if not question:
             return AgentResult(ok=False, message=INSUFFICIENT, confidence=0.0)
 
+        # Stable per-question id for audit logs (DynamoDB/file/none)
+        qid = str(int(time.time() * 1000))
+        ident = QueryIdentity(session_id=getattr(session, "session_id", "default"), query_id=qid)
+
+        # Compact/payload mode: persist ONE DynamoDB item per user question.
+        # The item contains a single JSON-like payload with: user-query, topk, llm_plan, SQL.
+        compact_mode = (getattr(self.settings, "query_store_mode", "") or "").strip().lower() in (
+            "payload",
+            "single",
+            "compact",
+        )
+        compact_payload: Dict[str, Any] = {
+            "user-query": question,
+            "topk": [],
+            "llm_plan": "",
+            "SQL": "",
+        }
+
+        def _write_compact_payload() -> None:
+            if not compact_mode:
+                return
+            try:
+                self.query_store.write_event(ident, "payload", compact_payload)
+            except Exception:
+                pass
+
+        if not compact_mode:
+            self.query_store.write_event(
+                ident,
+                "received",
+                {"question": question, "mode_hint": mode_hint, "env": self.settings.env},
+            )
+            self.query_store.write_snapshot(
+                ident,
+                {"status": "received", "question": question, "mode_hint": mode_hint, "env": self.settings.env},
+            )
+
         # Log the user query once up-front so failures/retries can be tied back
         # to the originating natural-language request.
         log.info(
@@ -416,6 +457,67 @@ class AgentOrchestrator:
             try:
                 # --- ACT: Retrieve relevant schema chunks (RAG) ---
                 retrieval = retrieve_schema_chunks(self.store, question, top_k=self.settings.rag_top_k)
+
+                # Retrieval summary (keep payload small)
+                top_chunks = []
+                # Also capture the human-readable retrieval lines (same as tools.retrieval log)
+                # so we can persist exactly what was retrieved into the query store (e.g., DynamoDB).
+                retrieval_lines = []
+                try:
+                    for c in (retrieval.chunks[: self.settings.rag_top_k] or []):
+                        # Compact representation (existing)
+                        top_chunks.append(
+                            {
+                                "id": getattr(c, "id", None),
+                                "score": float(getattr(c, "score", 0.0)),
+                                # Prefer the canonical attribute name used by RetrievedChunk
+                                "meta": getattr(c, "metadata", getattr(c, "meta", None)),
+                            }
+                        )
+
+                        # Human-readable line (requested for DynamoDB persistence)
+                        md = (getattr(c, "metadata", None) or {})
+                        kind = md.get("kind", "?")
+                        if kind == "table":
+                            ref = f"table={md.get('table')}"
+                        elif kind == "join":
+                            ref = f"join={md.get('left')}->{md.get('right')}"
+                        elif kind == "column":
+                            ref = f"col={md.get('table')}.{md.get('column')}"
+                        else:
+                            ref = (
+                                f"meta_keys={','.join(sorted(md.keys()))}" if md else "meta=None"
+                            )
+
+                        preview = " ".join((getattr(c, "text", "") or "").split())[:180]
+                        retrieval_lines.append(
+                            f"{len(retrieval_lines)+1:02d}. score={float(getattr(c, 'score', 0.0) or 0.0):.4f} kind={kind} {ref} | {preview}"
+                        )
+                except Exception:
+                    top_chunks = []
+                    retrieval_lines = []
+
+                # In compact mode, we only persist this list under `topk`.
+                compact_payload["topk"] = top_chunks
+                # Keep a compact, log-like view as well (useful when QUERY_STORE_MODE=payload).
+                compact_payload["topk_lines"] = retrieval_lines
+
+                # In detailed mode, persist the full retrieval event.
+                if not compact_mode:
+                    try:
+                        self.query_store.write_event(
+                            ident,
+                            "retrieval",
+                            {
+                                "retrieval_confidence": float(getattr(retrieval, "confidence", 0.0)),
+                                "top_k": int(self.settings.rag_top_k),
+                                "chunks": top_chunks,
+                                # Store exactly what was retrieved (the same format as the log output)
+                                "topk_lines": retrieval_lines,
+                            },
+                        )
+                    except Exception:
+                        pass
 
                 # --- OBSERVE: confidence (retrieval + plan + execution + result quality) ---
                 db_type = (self.settings.db_type or "duckdb").strip().lower()
@@ -450,11 +552,30 @@ class AgentOrchestrator:
                     },
                 )
 
+                if not compact_mode:
+                    self.query_store.write_snapshot(
+                        ident,
+                        {
+                            "status": "retrieved",
+                            "question": question,
+                            "mode_hint": mode_hint,
+                            "confidence": {
+                                "final": float(confidence),
+                                "retrieval": float(r_conf),
+                                "plan": float(p_conf),
+                                "execution": float(e_conf),
+                                "result": float(q_conf),
+                            },
+                            "attempt": attempt,
+                        },
+                    )
+
                 if self.settings.refuse_below_confidence and r_conf < self.settings.agent_min_confidence:
                     log.info(
                         "Refused due to low confidence",
                         extra={"final_confidence": confidence, "retrieval_confidence": r_conf, "attempt": attempt, "max_attempts": MAX_ITERS},
                     )
+                    _write_compact_payload()
                     return AgentResult(ok=False, message=INSUFFICIENT, confidence=confidence)
 
                 # --- Build grounded prompt for planner ---
@@ -492,7 +613,25 @@ class AgentOrchestrator:
                     raw_plan["mode"] = mode_hint
                 last_raw_plan = raw_plan
 
+                # In compact mode, persist only the LLM plan (raw JSON) inside the single payload item.
+                compact_payload["llm_plan"] = raw_plan
+
                 plan = validate_plan(self.registry, raw_plan)
+
+                # Persist raw/validated plan (detailed mode only)
+                if not compact_mode:
+                    try:
+                        self.query_store.write_event(
+                            ident,
+                            "plan",
+                            {
+                                "attempt": attempt,
+                                "raw_plan": raw_plan,
+                                "validated_plan": getattr(plan, "to_dict", lambda: raw_plan)(),
+                            },
+                        )
+                    except Exception:
+                        pass
 
                 # Update confidence after plan validation
                 p_conf = self._compute_plan_confidence(question, plan)
@@ -510,6 +649,25 @@ class AgentOrchestrator:
                         "max_attempts": MAX_ITERS,
                     },
                 )
+
+                if not compact_mode:
+                    self.query_store.write_snapshot(
+                        ident,
+                        {
+                            "status": "planned",
+                            "question": question,
+                            "mode_hint": mode_hint,
+                            "raw_plan": raw_plan,
+                            "confidence": {
+                                "final": float(confidence),
+                                "retrieval": float(r_conf),
+                                "plan": float(p_conf),
+                                "execution": float(e_conf),
+                                "result": float(q_conf),
+                            },
+                            "attempt": attempt,
+                        },
+                    )
 
                 # Update confidence after plan validation
                 p_conf = self._compute_plan_confidence(question, plan)
@@ -532,6 +690,27 @@ class AgentOrchestrator:
                 log.info(f"USER QUESTION ::: {question}")
                 df = execute_plan(session, plan)
 
+                # In compact mode, persist only the final SQL string inside the single payload item.
+                try:
+                    compact_payload["SQL"] = getattr(session, "last_sql", None) or ""
+                except Exception:
+                    compact_payload["SQL"] = ""
+
+                # Persist SQL used for execution (detailed mode only)
+                if not compact_mode:
+                    try:
+                        self.query_store.write_event(
+                            ident,
+                            "sql",
+                            {
+                                "db_type": getattr(session, "last_db_type", None),
+                                "sql": getattr(session, "last_sql", None),
+                                "attempt": attempt,
+                            },
+                        )
+                    except Exception:
+                        pass
+
                 # Update confidence after execution + result sanity checks
                 e_conf = 1.0
                 q_conf = self._compute_result_confidence(df, plan)
@@ -549,6 +728,31 @@ class AgentOrchestrator:
                         "max_attempts": MAX_ITERS,
                     },
                 )
+
+                if not compact_mode:
+                    self.query_store.write_snapshot(
+                        ident,
+                        {
+                            "status": "executed",
+                            "question": question,
+                            "mode_hint": mode_hint,
+                            "raw_plan": last_raw_plan,
+                            "db_type": getattr(session, "last_db_type", None),
+                            "sql": getattr(session, "last_sql", None),
+                            "result": {
+                                "rows": int(len(df)) if df is not None else 0,
+                                "cols": list(df.columns) if df is not None else [],
+                            },
+                            "confidence": {
+                                "final": float(confidence),
+                                "retrieval": float(r_conf),
+                                "plan": float(p_conf),
+                                "execution": float(e_conf),
+                                "result": float(q_conf),
+                            },
+                            "attempt": attempt,
+                        },
+                    )
 
                 # --- OBSERVE: empty results -> retry with simpler guidance ---
                 if df is None or df.empty:
@@ -687,6 +891,7 @@ class AgentOrchestrator:
                             fig = build_figure(df_use, spec)
                             figures.append(fig)
                         primary = figures[0] if figures else None
+                        _write_compact_payload()
                         return AgentResult(
                             ok=True,
                             message="OK",
@@ -698,6 +903,7 @@ class AgentOrchestrator:
                         )
                     except PlotlyRenderError:
                         # Fallback to table without retrying further (chart issue isn't data/planning)
+                        _write_compact_payload()
                         return AgentResult(
                             ok=True,
                             message="OK (fallback table)",
@@ -709,6 +915,19 @@ class AgentOrchestrator:
                         )
 
                 # --- Report success ---
+                if not compact_mode:
+                    self.query_store.write_event(
+                        ident,
+                        "final",
+                        {
+                            "status": "ok",
+                            "attempt": attempt,
+                            "confidence": float(confidence),
+                            "rows": int(len(df)) if df is not None else 0,
+                        },
+                    )
+
+                _write_compact_payload()
                 return AgentResult(ok=True, message="OK", plan=last_raw_plan, confidence=confidence, df=df)
 
             except SchemaValidationError as e:
@@ -730,6 +949,18 @@ class AgentOrchestrator:
                     },
                     exc_info=True,
                 )
+                if not compact_mode:
+                    self.query_store.write_event(
+                        ident,
+                        "error",
+                        {
+                            "stage": "schema_validation",
+                            "attempt": attempt,
+                            "error": traceback.format_exc(),
+                            "error_summary": str(e),
+                            "raw_plan": last_raw_plan,
+                        },
+                    )
                 continue
 
             except RetrievalError as e:
@@ -750,6 +981,12 @@ class AgentOrchestrator:
                     },
                     exc_info=True,
                 )
+                if not compact_mode:
+                    self.query_store.write_event(
+                        ident,
+                        "error",
+                        {"stage": "retrieval", "attempt": attempt, "error": traceback.format_exc(), "error_summary": str(e)},
+                    )
                 continue
 
             except Exception as e:
@@ -771,7 +1008,33 @@ class AgentOrchestrator:
                     },
                     exc_info=True,
                 )
+                if not compact_mode:
+                    self.query_store.write_event(
+                        ident,
+                        "error",
+                        {
+                            "stage": "execution",
+                            "attempt": attempt,
+                            "error": traceback.format_exc(),
+                            "error_summary": str(e),
+                            "raw_plan": last_raw_plan,
+                            "sql": getattr(session, "last_sql", None),
+                        },
+                    )
                 continue
 
         # All attempts exhausted
+        if not compact_mode:
+            self.query_store.write_snapshot(
+                ident,
+                {
+                    "status": "failed",
+                    "question": question,
+                    "mode_hint": mode_hint,
+                    "raw_plan": last_raw_plan,
+                    "confidence": float(last_confidence),
+                },
+            )
+
+        _write_compact_payload()
         return AgentResult(ok=False, message=INSUFFICIENT, plan=last_raw_plan, confidence=last_confidence)
