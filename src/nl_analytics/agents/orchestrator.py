@@ -50,8 +50,79 @@ class AgentOrchestrator:
     def __init__(self, settings: Settings, registry: SchemaRegistry):
         self.settings = settings
         self.registry = registry
+
+        # Query tracing / audit store (DynamoDB, local, etc.)
+        self.query_store = build_query_store(settings)
+
         # Registry-driven candidate column resolution (boosts schema retrieval accuracy)
         self.col_resolver = ColumnResolver(registry)
+
+        # LLM / embeddings client
+        self.bedrock = BedrockClient(
+            BedrockConfig(
+                region=settings.aws_region,
+                chat_model_id=settings.bedrock_chat_model_id,
+                embed_model_id=settings.bedrock_embed_model_id,
+                max_tokens=settings.llm_max_tokens,
+                temperature=settings.llm_temperature,
+                use_mock=settings.use_mock_bedrock,
+            )
+        )
+
+        class _EmbedFn:
+            def __init__(self, br: BedrockClient):
+                self.br = br
+                # Optional: S3 Vectors index can require a specific embedding dimension.
+                # Stores the desired dimension (if known) and passes it to BedrockClient.embed().
+                self.desired_dimensions = None
+
+            # IMPORTANT: parameter name must be `input` (not texts)
+            def __call__(self, input):
+                # Chroma passes a list[str] typically; handle str too
+                if isinstance(input, str):
+                    input = [input]
+                return self.br.embed(list(input), dimensions=self.desired_dimensions)
+
+            def name(self) -> str:
+                return "default"
+
+            def get_config(self) -> dict:
+                return {"name": self.name()}
+
+        # Vector store backend
+        backend = (settings.vector_backend or "chroma").lower().strip()
+        if backend == "chroma":
+            self.store: VectorStore = ChromaVectorStore(settings.chroma_dir, embedding_fn=_EmbedFn(self.bedrock))
+        elif backend == "s3":
+            self.store = S3VectorStore(
+                bucket=settings.s3_vector_bucket,
+                prefix=settings.s3_vector_prefix,
+                cache_dir=settings.s3_vector_cache_dir,
+                refresh_seconds=settings.s3_vector_refresh_seconds,
+                embedding_fn=_EmbedFn(self.bedrock),
+            )
+        elif backend == "s3vectors":
+            self.store = S3VectorsVectorStore(
+                bucket=settings.s3vectors_bucket,
+                index=settings.s3vectors_index,
+                namespace=settings.s3vectors_namespace,
+                refresh_seconds=settings.s3vectors_refresh_seconds,
+                embedding_fn=_EmbedFn(self.bedrock),
+                region_name=getattr(settings, "aws_region", None),
+            )
+        else:
+            raise NotImplementedError(f"VECTOR_BACKEND not supported: {backend}")
+
+        # Schema indexing can be slow or temporarily unavailable (e.g., S3 Vectors PutVectors timeout).
+        # We should not fail the entire app startup if indexing fails.
+        self.schema_index_ready: bool = False
+        try:
+            self._ensure_schema_index_if_missing()
+            self.schema_index_ready = True
+        except RetrievalError as e:
+            # Degraded mode: app still runs; retrieval will likely fail until indexing succeeds.
+            log.exception("Schema index bootstrap failed; continuing in degraded mode", extra={"error": str(e)})
+            self.schema_index_ready = False
 
     def _ensure_instrument_id_dimension(self, question: str, plan: QueryPlan) -> QueryPlan:
         """If user asks for instruments, ensure InstrumentID is selected when available."""
@@ -89,77 +160,6 @@ class AgentOrchestrator:
             chart=plan.chart,
             charts=plan.charts,
         )
-        self.query_store = build_query_store(settings)
-
-        # Registry-driven column suggestion to stabilize retrieval + planning.
-        # This is especially important for ambiguous "price" questions where multiple
-        # tables have price-like columns (TradePrice, DeliveryPrice, BuyDownPrice, etc.).
-        self.col_resolver = ColumnResolver(registry)
-
-        self.bedrock = BedrockClient(
-            BedrockConfig(
-                region=settings.aws_region,
-                chat_model_id=settings.bedrock_chat_model_id,
-                embed_model_id=settings.bedrock_embed_model_id,
-                max_tokens=settings.llm_max_tokens,
-                temperature=settings.llm_temperature,
-                use_mock=settings.use_mock_bedrock,
-            )
-        )
-
-        class _EmbedFn:
-            def __init__(self, br: BedrockClient):
-                self.br = br
-                # Optional: S3 Vectors index can require a specific embedding dimension.
-                # Stores the desired dimension (if known) and passes it to BedrockClient.embed().
-                self.desired_dimensions = None
-
-            # ✅ IMPORTANT: parameter name must be `input` (not texts)
-            def __call__(self, input):
-                # Chroma passes a list[str] typically; handle str too
-                if isinstance(input, str):
-                    input = [input]
-                return self.br.embed(list(input), dimensions=self.desired_dimensions)
-
-            def name(self) -> str:
-                return "default"
-
-            def get_config(self) -> dict:
-                return {"name": self.name()}
-
-        backend = (settings.vector_backend or "chroma").lower().strip()
-        if backend == "chroma":
-            self.store: VectorStore = ChromaVectorStore(settings.chroma_dir, embedding_fn=_EmbedFn(self.bedrock))
-        elif backend == "s3":
-            self.store = S3VectorStore(
-                bucket=settings.s3_vector_bucket,
-                prefix=settings.s3_vector_prefix,
-                cache_dir=settings.s3_vector_cache_dir,
-                refresh_seconds=settings.s3_vector_refresh_seconds,
-                embedding_fn=_EmbedFn(self.bedrock),
-            )
-        elif backend == "s3vectors":
-            self.store = S3VectorsVectorStore(
-                bucket=settings.s3vectors_bucket,
-                index=settings.s3vectors_index,
-                namespace=settings.s3vectors_namespace,
-                refresh_seconds=settings.s3vectors_refresh_seconds,
-                embedding_fn=_EmbedFn(self.bedrock),
-                region_name=getattr(settings, "aws_region", None),
-            )
-        else:
-            raise NotImplementedError(f"VECTOR_BACKEND not supported: {backend}")
-
-        # Schema indexing can be slow or temporarily unavailable (e.g., S3 Vectors PutVectors timeout).
-        # We should not fail the entire app startup if indexing fails.
-        self.schema_index_ready: bool = False
-        try:
-            self._ensure_schema_index_if_missing()
-            self.schema_index_ready = True
-        except RetrievalError as e:
-            # Degraded mode: app still runs; retrieval will likely fail until indexing succeeds.
-            log.exception("Schema index bootstrap failed; continuing in degraded mode", extra={"error": str(e)})
-            self.schema_index_ready = False
 
     def _schema_state_path(self) -> Path:
         p = Path("data") / ".cache"

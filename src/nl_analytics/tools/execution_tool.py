@@ -260,7 +260,36 @@ def _compile_sql(
             # If ordering by a dimension column, qualify it. If ordering by metric name, keep as identifier.
             if by_s in plan.dimensions and by_s in col_ref:
                 alias, col = col_ref[by_s].split(".", 1)
-                parts.append(f"{alias}.{_sql_ident(col, dialect)} {'DESC' if desc else 'ASC'}")
+                col_sql = f"{alias}.{_sql_ident(col, dialect)}"
+
+                # IMPORTANT: Many MRP nzf/CSV-backed Athena external tables end up with numeric-looking
+                # fields inferred/declared as VARCHAR. Sorting those lexicographically produces wrong
+                # results (e.g., '99' > '100'). If the schema registry says the column is numeric, use a
+                # defensive TRY_CAST in ORDER BY.
+                try:
+                    col_type = (
+                        registry.tables.get(alias).columns.get(col).type  # type: ignore[union-attr]
+                        or ""
+                    ).strip().lower()
+                except Exception:
+                    col_type = ""
+                numeric_types = {
+                    "int",
+                    "integer",
+                    "bigint",
+                    "smallint",
+                    "tinyint",
+                    "float",
+                    "double",
+                    "real",
+                    "decimal",
+                    "numeric",
+                    "number",
+                }
+                if col_type in numeric_types:
+                    col_sql = dialect.try_cast_double(col_sql)
+
+                parts.append(f"{col_sql} {'DESC' if desc else 'ASC'}")
             else:
                 parts.append(f"{_sql_ident(by_s, dialect)} {'DESC' if desc else 'ASC'}")
         if parts:
