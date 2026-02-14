@@ -17,17 +17,37 @@ tables:
 
       '
     aliases:
-    - portfolio valuation run
+    - PVR00100
+    - portfolio valuation
+    - valuation results
+    - pvr
+    - scenario
+    - scenarios
+    - interest rates
+    - rates
+    - payment terms
+    - coupon
+    - prepayment
+    - cpr
+    - PVR 00100
     primary_key:
     - DmrRunID
     business_tags:
-    - portfolio valuation run
+    - as-of
+    - payment-structure
+    - portfolio
+    - prepayment
+    - rates
+    - run-metadata
+    - scenarios
+    - valuation
     columns:
       DmrRunID:
         type: string
         description: Dmr run id.
         aliases:
         - run id
+        - dmr run
         - batch id
         - dmr run id
         - dmr id
@@ -48,11 +68,13 @@ tables:
         - PortfolioID
         - portfolio_id
         - portfolio-id
+        - pi
         - portfolio id identifier
       PortfolioDate:
         type: date
         description: Portfolio date.
         aliases:
+        - date
         - portfolio date
         - portfolio as of date
         - PortfolioDate
@@ -65,6 +87,7 @@ tables:
         type: date
         description: Valuation date.
         aliases:
+        - date
         - valuation date
         - ValuationDate
         - valuation_date
@@ -76,6 +99,7 @@ tables:
         type: date
         description: Interest rate date.
         aliases:
+        - date
         - interest rate date
         - InterestRateDate
         - interest_rate_date
@@ -96,6 +120,7 @@ tables:
         type: date
         description: Volatility date.
         aliases:
+        - date
         - volatility date
         - VolatilityDate
         - volatility_date
@@ -139,7 +164,9 @@ tables:
     - '*PVR00200*.nzf'
     - PVR00200.nzf
     description: 'Run-level metadata for PRiMA portfolio valuation (scenario selection, run dates, versions). Use this table
-      to audit run configuration and scenario versions used in a valuation run. '
+      to audit run configuration and scenario versions used in a valuation run.
+
+      '
     aliases:
     - PVR00200
     - portfolio valuation
@@ -181,6 +208,7 @@ tables:
         type: string
         description: Run name.
         aliases:
+        - name
         - run name
         - RunName
         - run_name
@@ -277,6 +305,7 @@ tables:
         type: date
         description: Interest rate date.
         aliases:
+        - date
         - interest rate date
         - InterestRateDate
         - interest_rate_date
@@ -288,6 +317,7 @@ tables:
         type: date
         description: Volatility date.
         aliases:
+        - date
         - volatility date
         - VolatilityDate
         - volatility_date
@@ -299,6 +329,7 @@ tables:
         type: date
         description: Hpi as of date.
         aliases:
+        - date
         - hpi as of date
         - HpiAsOfDate
         - hpi_as_of_date
@@ -310,6 +341,7 @@ tables:
         type: date
         description: Hpi utility date.
         aliases:
+        - date
         - hpi utility date
         - HpiUtilityDate
         - hpi_utility_date
@@ -321,6 +353,7 @@ tables:
         type: date
         description: Valuation date.
         aliases:
+        - date
         - valuation date
         - ValuationDate
         - valuation_date
@@ -332,6 +365,7 @@ tables:
         type: date
         description: Run date.
         aliases:
+        - date
         - run date
         - RunDate
         - run_date
@@ -428,8 +462,10 @@ tables:
     file_patterns:
     - '*PVR00300*.nzf'
     - PVR00300.nzf
-    description: 'Instrument-level pricing and prepayment model outputs used in valuation . Use
-      this table to analyze pricing inputs/outputs and modeling diagnostics by aggregated instrument.'
+    description: 'Instrument-level pricing and prepayment model outputs used in valuation (OAS, price, factors, errors). Use
+      this table to analyze pricing inputs/outputs and modeling diagnostics by aggregated instrument.
+
+      '
     aliases:
     - PVR00300
     - portfolio valuation
@@ -660,6 +696,7 @@ tables:
         type: date
         description: Pricing date.
         aliases:
+        - date
         - pricing date
         - PricingDate
         - pricing_date
@@ -845,6 +882,9 @@ tables:
         type: float
         description: Pricing spread amount.
         aliases:
+        - amt
+        - value
+        - amount
         - pricing spread amt
         - pricing spread amount
         - PricingSpreadAmount
@@ -863,9 +903,7 @@ tables:
     - PVR00400.nzf
     - PVR00400_synthetic_1000.nzf
     description: 'Instrument master attributes within a portfolio context (e.g., CUSIP, deal, dates, balances). Use this table
-      for instrument-level rollups and portfolio composition analysis.
-
-      '
+      for instrument-level rollups and portfolio composition analysis.'
     aliases:
     - PVR00400
     - portfolio valuation
@@ -911,6 +949,123 @@ tables:
         - portfolio_id
         - portfolio-id
         - pi
+      CollateralCouponTypeCode:
+        type: string
+        description: Collateral coupon type code.
+        aliases:
+        - CollateralCouponTypeCode
+        - collateralcoupontypecode
+        - Collateral Coupon Type Code
+        - collateral coupon type code
+        - collateral-coupon-type-code
+        - collateral_coupon_type_code
+      InstrumentTypeCode:
+        type: string
+        description: Instrument type code (security/instrument classification used for reporting and grouping).
+        aliases:
+          - instrument type
+          - instrument type code
+          - security type
+          - security type code
+          - instrument classification
+          - instrument category
+          - product type (instrument)
+      GuarantorTypeCode:
+        type: string
+        description: Guarantor type code.
+        aliases:
+        - GuarantorTypeCode
+        - guarantortypecode
+        - Guarantor Type Code
+        - guarantor type code
+        - guarantor-type-code
+        - guarantor_type_code
+      DwellingTypeCode:
+        type: string
+        description: Dwelling type code.
+        aliases:
+        - DwellingTypeCode
+        - dwellingtypecode
+        - Dwelling Type Code
+        - dwelling type code
+        - dwelling-type-code
+        - dwelling_type_code
+      OriginalTerm:
+        type: integer
+        description: Original term.
+        aliases:
+        - OriginalTerm
+        - originalterm
+        - Original Term
+        - original term
+        - original-term
+        - original_term
+      NegAmortLimitRatio:
+        type: float
+        description: Neg amort limit ratio.
+        aliases:
+        - NegAmortLimitRatio
+        - negamortlimitratio
+        - Neg Amort Limit Ratio
+        - neg amort limit ratio
+        - neg-amort-limit-ratio
+        - neg_amort_limit_ratio
+      DealCollateralTypeCode:
+        type: string
+        description: Deal collateral type code.
+        aliases:
+        - DealCollateralTypeCode
+        - dealcollateraltypecode
+        - Deal Collateral Type Code
+        - deal collateral type code
+        - deal-collateral-type-code
+        - deal_collateral_type_code
+      NumberOfCollateralAssets:
+        type: integer
+        description: Number of collateral assets.
+        aliases:
+        - NumberOfCollateralAssets
+        - numberofcollateralassets
+        - Number Of Collateral Assets
+        - number of collateral assets
+        - number-of-collateral-assets
+        - number_of_collateral_assets
+      DeliveryDate:
+        type: date
+        description: Delivery date.
+        aliases:
+        - DeliveryDate
+        - deliverydate
+        - Delivery Date
+        - delivery date
+        - delivery-date
+        - delivery_date
+      SettlementDate:
+        type: date
+        description: Settlement date.
+        aliases:
+        - SettlementDate
+        - settlementdate
+        - Settlement Date
+        - settlement date
+        - settlement-date
+        - settlement_date
+      TradeDate:
+        type: date
+        description: Trade date.
+        aliases:
+        - TradeDate
+        - tradedate
+        - Trade Date
+        - trade date
+        - trade-date
+        - trade_date
+      WALA:
+        type: string
+        description: Wala.
+        aliases:
+        - WALA
+        - wala
       CUSIP:
         type: string
         description: Cusip.
@@ -920,42 +1075,69 @@ tables:
         - cusip field 3
         - cusip field 4
         - cusip field 5
-      DealName:
+      AccountingDate:
+        type: date
+        description: Accounting date.
+        aliases:
+        - AccountingDate
+        - accountingdate
+        - Accounting Date
+        - accounting date
+        - accounting-date
+        - accounting_date
+      AcctgTrtmntBookCndtTagCd:
         type: string
-        description: Deal name.
+        description: Acctg trtmnt book cndt tag cd.
         aliases:
-        - deal name
-        - DealName
-        - deal_name
-        - deal-name
-        - dn
-      IssueDate:
-        type: date
-        description: Issue date.
+        - AcctgTrtmntBookCndtTagCd
+        - acctgtrtmntbookcndttagcd
+        - Acctg Trtmnt Book Cndt Tag Cd
+        - acctg trtmnt book cndt tag cd
+        - acctg-trtmnt-book-cndt-tag-cd
+        - acctg_trtmnt_book_cndt_tag_cd
+      AcctgTrtmntTaxCndtTagCd:
+        type: string
+        description: Acctg trtmnt tax cndt tag cd.
         aliases:
-        - date
-        - issue date
-        - IssueDate
-        - issue_date
-        - issue-date
-        - id
-        - issue date date
-        - as of issue date
-      MaturityDate:
-        type: date
-        description: Maturity date.
+        - AcctgTrtmntTaxCndtTagCd
+        - acctgtrtmnttaxcndttagcd
+        - Acctg Trtmnt Tax Cndt Tag Cd
+        - acctg trtmnt tax cndt tag cd
+        - acctg-trtmnt-tax-cndt-tag-cd
+        - acctg_trtmnt_tax_cndt_tag_cd
+      ModelAccruedInterest:
+        type: float
+        description: Model accrued interest.
         aliases:
-        - date
-        - maturity date
-        - MaturityDate
-        - maturity_date
-        - maturity-date
-        - md
-        - maturity date date
-        - as of maturity date
+        - ModelAccruedInterest
+        - modelaccruedinterest
+        - Model Accrued Interest
+        - model accrued interest
+        - model-accrued-interest
+        - model_accrued_interest
+      AcquisitionGuarFeeRate:
+        type: float
+        description: Acquisition guar fee rate.
+        aliases:
+        - AcquisitionGuarFeeRate
+        - acquisitionguarfeerate
+        - Acquisition Guar Fee Rate
+        - acquisition guar fee rate
+        - acquisition-guar-fee-rate
+        - acquisition_guar_fee_rate
+      CreditFeatureCode:
+        type: string
+        description: Credit feature code.
+        aliases:
+        - CreditFeatureCode
+        - creditfeaturecode
+        - Credit Feature Code
+        - credit feature code
+        - credit-feature-code
+        - credit_feature_code
       CurrentUPBAmt:
         type: float
-        description: Current upbamt.
+        description: Current UPB Amount.
         aliases:
         - UPB
         - Total UPB
@@ -963,10 +1145,140 @@ tables:
         - Unpaid Principal Balance
         - Current Unpaid Principal Balance
         - Outstanding Principal
-        - CurrentUPBAmt
+        - Current UPB Amount
         - current upbamt
         - current_upbamt
         - current-upbamt
+      FourPlusHistoryIndicator:
+        type: string
+        description: Four plus history indicator.
+        aliases:
+        - FourPlusHistoryIndicator
+        - fourplushistoryindicator
+        - Four Plus History Indicator
+        - four plus history indicator
+        - four-plus-history-indicator
+        - four_plus_history_indicator
+      FourPlusIndicator:
+        type: string
+        description: Four plus indicator.
+        aliases:
+        - FourPlusIndicator
+        - fourplusindicator
+        - Four Plus Indicator
+        - four plus indicator
+        - four-plus-indicator
+        - four_plus_indicator
+      IssuerTypeCode:
+        type: string
+        description: Issuer type code.
+        aliases:
+        - IssuerTypeCode
+        - issuertypecode
+        - Issuer Type Code
+        - issuer type code
+        - issuer-type-code
+        - issuer_type_code
+      LienTypeCode:
+        type: string
+        description: Lien type code.
+        aliases:
+        - LienTypeCode
+        - lientypecode
+        - Lien Type Code
+        - lien type code
+        - lien-type-code
+        - lien_type_code
+      PortfolioBookTypeCode:
+        type: string
+        description: Portfolio book type code.
+        aliases:
+        - PortfolioBookTypeCode
+        - portfoliobooktypecode
+        - Portfolio Book Type Code
+        - portfolio book type code
+        - portfolio-book-type-code
+        - portfolio_book_type_code
+      PortfolioCode:
+        type: string
+        description: Portfolio code.
+        aliases:
+        - PortfolioCode
+        - portfoliocode
+        - Portfolio Code
+        - portfolio code
+        - portfolio-code
+        - portfolio_code
+      PortfolioIndicator:
+        type: string
+        description: Portfolio indicator.
+        aliases:
+        - PortfolioIndicator
+        - portfolioindicator
+        - Portfolio Indicator
+        - portfolio indicator
+        - portfolio-indicator
+        - portfolio_indicator
+      MirrorIndicator:
+        type: string
+        description: Mirror indicator.
+        aliases:
+        - MirrorIndicator
+        - mirrorindicator
+        - Mirror Indicator
+        - mirror indicator
+        - mirror-indicator
+        - mirror_indicator
+      SyntheticIndicator:
+        type: string
+        description: Synthetic indicator.
+        aliases:
+        - SyntheticIndicator
+        - syntheticindicator
+        - Synthetic Indicator
+        - synthetic indicator
+        - synthetic-indicator
+        - synthetic_indicator
+      ProductTypeCode:
+        type: string
+        description: Product type code.
+        aliases:
+        - ProductTypeCode
+        - producttypecode
+        - Product Type Code
+        - product type code
+        - product-type-code
+        - product_type_code
+      RateReductionType:
+        type: float
+        description: Rate reduction type.
+        aliases:
+        - RateReductionType
+        - ratereductiontype
+        - Rate Reduction Type
+        - rate reduction type
+        - rate-reduction-type
+        - rate_reduction_type
+      RePerformingIndicator:
+        type: string
+        description: Re performing indicator.
+        aliases:
+        - RePerformingIndicator
+        - reperformingindicator
+        - Re Performing Indicator
+        - re performing indicator
+        - re-performing-indicator
+        - re_performing_indicator
+      ActivityTypeCode:
+        type: string
+        description: Activity type code.
+        aliases:
+        - ActivityTypeCode
+        - activitytypecode
+        - Activity Type Code
+        - activity type code
+        - activity-type-code
+        - activity_type_code
       OriginalAmount:
         type: float
         description: Original amount.
@@ -981,6 +1293,281 @@ tables:
         - original-amount
         - oa
         - original amount amount
+      TradePrice:
+        type: float
+        description: Trade price for the instrument/security (executed trade price).
+        aliases:
+        - trade price
+        - executed trade price
+        - price at trade
+        - security trade price
+        - instrument trade price
+        - traded price
+      TradeID:
+        type: string
+        description: Trade id.
+        aliases:
+        - TradeID
+        - tradeid
+        - Trade ID
+        - trade id
+        - trade-id
+        - trade_id
+      ABSTypeCode:
+        type: string
+        description: Abs type code.
+        aliases:
+        - ABSTypeCode
+        - abstypecode
+        - ABS Type Code
+        - abs type code
+        - abs-type-code
+        - abs_type_code
+      AccrualStartDay:
+        type: integer
+        description: Accrual start day.
+        aliases:
+        - AccrualStartDay
+        - accrualstartday
+        - Accrual Start Day
+        - accrual start day
+        - accrual-start-day
+        - accrual_start_day
+      ARMSubType:
+        type: string
+        description: Arm sub type.
+        aliases:
+        - ARMSubType
+        - armsubtype
+        - ARM Sub Type
+        - arm sub type
+        - arm-sub-type
+        - arm_sub_type
+      AverageOriginalLoanSize:
+        type: string
+        description: Average original loan size.
+        aliases:
+        - AverageOriginalLoanSize
+        - averageoriginalloansize
+        - Average Original Loan Size
+        - average original loan size
+        - average-original-loan-size
+        - average_original_loan_size
+      CreditScoreBorrower:
+        type: float
+        description: Credit Score for borrowers.
+        aliases:
+        - CreditScore Borrower
+        - creditscore borrower
+        - Credit Score Borrower
+        - credit score borrower
+        - credit-score-borrower
+        - credit_score_borrower
+      CreditScoreCoBorrower:
+        type: float
+        description: Credit score co borrower.
+        aliases:
+        - CreditScoreCoBorrower
+        - creditscorecoborrower
+        - Credit Score Co Borrower
+        - credit score co borrower
+        - credit-score-co-borrower
+        - credit_score_co_borrower
+      DealCategoryCode:
+        type: string
+        description: Deal category code.
+        aliases:
+        - DealCategoryCode
+        - dealcategorycode
+        - Deal Category Code
+        - deal category code
+        - deal-category-code
+        - deal_category_code
+      DealName:
+        type: string
+        description: Deal name.
+        aliases:
+        - deal name
+        - DealName
+        - deal_name
+        - deal-name
+        - dn
+      DealNumber:
+        type: integer
+        description: Deal number.
+        aliases:
+        - DealNumber
+        - dealnumber
+        - Deal Number
+        - deal number
+        - deal-number
+        - deal_number
+      OrigDebtServCoverageRatio:
+        type: float
+        description: Orig debt serv coverage ratio.
+        aliases:
+        - OrigDebtServCoverageRatio
+        - origdebtservcoverageratio
+        - Orig Debt Serv Coverage Ratio
+        - orig debt serv coverage ratio
+        - orig-debt-serv-coverage-ratio
+        - orig_debt_serv_coverage_ratio
+      DeliveryAmount:
+        type: float
+        description: Delivery amount.
+        aliases:
+        - DeliveryAmount
+        - deliveryamount
+        - Delivery Amount
+        - delivery amount
+        - delivery-amount
+        - delivery_amount
+      DeliveryPrice:
+        type: float
+        description: Delivery price (price used for delivery/settlement).
+        aliases:
+          - delivery price
+          - settlement delivery price
+      DeliveryPriceAdjPercent:
+        type: float
+        description: Delivery price adj percent.
+        aliases:
+        - DeliveryPriceAdjPercent
+        - deliverypriceadjpercent
+        - Delivery Price Adj Percent
+        - delivery price adj percent
+        - delivery-price-adj-percent
+        - delivery_price_adj_percent
+      DocumentationTypeCode:
+        type: string
+        description: Documentation type code.
+        aliases:
+        - DocumentationTypeCode
+        - documentationtypecode
+        - Documentation Type Code
+        - documentation type code
+        - documentation-type-code
+        - documentation_type_code
+      Factor:
+        type: float
+        description: Factor.
+        aliases:
+        - Factor
+        - factor
+      FactorDate:
+        type: date
+        description: Factor date.
+        aliases:
+        - FactorDate
+        - factordate
+        - Factor Date
+        - factor date
+        - factor-date
+        - factor_date
+      FitchCreditRating:
+        type: string
+        description: Fitch credit rating.
+        aliases:
+        - FitchCreditRating
+        - fitchcreditrating
+        - Fitch Credit Rating
+        - fitch credit rating
+        - fitch-credit-rating
+        - fitch_credit_rating
+      GeographicDistribution:
+        type: string
+        description: Geographic distribution.
+        aliases:
+        - GeographicDistribution
+        - geographicdistribution
+        - Geographic Distribution
+        - geographic distribution
+        - geographic-distribution
+        - geographic_distribution
+      InterestOnlyOrigMonthsMin:
+        type: float
+        description: Interest only orig months min.
+        aliases:
+        - InterestOnlyOrigMonthsMin
+        - interestonlyorigmonthsmin
+        - Interest Only Orig Months Min
+        - interest only orig months min
+        - interest-only-orig-months-min
+        - interest_only_orig_months_min
+      InterestOnlyOrigMonthsMax:
+        type: float
+        description: Interest only orig months max.
+        aliases:
+        - InterestOnlyOrigMonthsMax
+        - interestonlyorigmonthsmax
+        - Interest Only Orig Months Max
+        - interest only orig months max
+        - interest-only-orig-months-max
+        - interest_only_orig_months_max
+      InvestorPercent:
+        type: float
+        description: Investor percent.
+        aliases:
+        - InvestorPercent
+        - investorpercent
+        - Investor Percent
+        - investor percent
+        - investor-percent
+        - investor_percent
+      IssueDate:
+        type: date
+        description: Issue date.
+        aliases:
+        - date
+        - issue date
+        - IssueDate
+        - issue_date
+        - issue-date
+        - id
+        - issue date date
+        - as of issue date
+      LoanCount:
+        type: integer
+        description: Loan count.
+        aliases:
+        - LoanCount
+        - loancount
+        - Loan Count
+        - loan count
+        - loan-count
+        - loan_count
+      MoodysCreditRating:
+        type: string
+        description: Moodys credit rating.
+        aliases:
+        - MoodysCreditRating
+        - moodyscreditrating
+        - Moodys Credit Rating
+        - moodys credit rating
+        - moodys-credit-rating
+        - moodys_credit_rating
+      MultiUnitPercent:
+        type: float
+        description: Multi unit percent.
+        aliases:
+        - MultiUnitPercent
+        - multiunitpercent
+        - Multi Unit Percent
+        - multi unit percent
+        - multi-unit-percent
+        - multi_unit_percent
+      MaturityDate:
+        type: date
+        description: Maturity date.
+        aliases:
+        - date
+        - maturity date
+        - MaturityDate
+        - maturity_date
+        - maturity-date
+        - md
+        - maturity date date
+        - as of maturity date
     examples:
     - Count instruments by portfolio for a given run/date using PVR00400
     - Show key metrics grouped by portfolio or instrument from PVR00400
@@ -990,7 +1577,9 @@ tables:
     - '*PVR00500*.nzf'
     - PVR00500.nzf
     description: 'Instrument payment terms and structure settings (caps/floors, index, reset, schedule, conventions). Use
-      this table to analyze payment structure features and contractual terms.'
+      this table to analyze payment structure features and contractual terms.
+
+      '
     aliases:
     - PVR00500
     - portfolio valuation
@@ -1018,6 +1607,7 @@ tables:
         description: Instrument id.
         aliases:
         - pool
+        - cusip
         - security
         - instrument
         - instrument id
@@ -1053,6 +1643,7 @@ tables:
         type: string
         description: Payment type code.
         aliases:
+        - code
         - payment type
         - payment type code
         - PaymentTypeCode
@@ -1091,6 +1682,7 @@ tables:
         type: float
         description: Instrument coupon type code.
         aliases:
+        - code
         - instrument coupon type
         - instrument coupon type code
         - InstrumentCouponTypeCode
@@ -1140,6 +1732,7 @@ tables:
         type: string
         description: Payment frequency type code.
         aliases:
+        - code
         - payment frequency type
         - payment frequency type code
         - PaymentFrequencyTypeCode
@@ -1180,6 +1773,7 @@ tables:
         type: string
         description: Amortization type code.
         aliases:
+        - code
         - amortization type
         - amortization type code
         - AmortizationTypeCode
@@ -1191,6 +1785,7 @@ tables:
         type: int
         description: Day count code.
         aliases:
+        - code
         - day count
         - day count code
         - DayCountCode
@@ -1202,6 +1797,7 @@ tables:
         type: date
         description: Final payment date.
         aliases:
+        - date
         - final payment date
         - FinalPaymentDate
         - final_payment_date
@@ -1222,6 +1818,7 @@ tables:
         type: string
         description: Armindex code.
         aliases:
+        - code
         - armindex
         - armindex code
         - ARMIndexCode
@@ -1379,15 +1976,10 @@ tables:
         type: float
         description: Trade amount.
         aliases:
-        - amt
-        - value
-        - amount
         - trade amt
         - trade amount
         - TradeAmount
-        - trade_amount
         - trade-amount
-        - ta
         - trade amount amount
       ConvertibleIndicator:
         type: bool
@@ -1402,6 +1994,7 @@ tables:
         type: date
         description: Conversion date.
         aliases:
+        - date
         - conversion date
         - ConversionDate
         - conversion_date
@@ -1413,6 +2006,7 @@ tables:
         type: date
         description: First rate reset date.
         aliases:
+        - date
         - first rate reset date
         - FirstRateResetDate
         - first_rate_reset_date
@@ -1424,6 +2018,7 @@ tables:
         type: date
         description: First payment date.
         aliases:
+        - date
         - first payment date
         - FirstPaymentDate
         - first_payment_date
@@ -1453,6 +2048,7 @@ tables:
         type: string
         description: Interest currency code.
         aliases:
+        - code
         - interest currency
         - interest currency code
         - InterestCurrencyCode
@@ -1504,6 +2100,7 @@ tables:
         type: string
         description: Payment structure type code.
         aliases:
+        - code
         - type code
         - payment type
         - structure type
@@ -1517,6 +2114,7 @@ tables:
         type: string
         description: Payment calendar code.
         aliases:
+        - code
         - payment calendar
         - payment calendar code
         - PaymentCalendarCode
@@ -1537,6 +2135,7 @@ tables:
         type: string
         description: Payment method code.
         aliases:
+        - code
         - payment method
         - payment method code
         - PaymentMethodCode
@@ -1548,6 +2147,7 @@ tables:
         type: string
         description: Principal currency code.
         aliases:
+        - code
         - principal currency
         - principal currency code
         - PrincipalCurrencyCode
@@ -1586,6 +2186,7 @@ tables:
         type: string
         description: Range note obs calendar code.
         aliases:
+        - code
         - range note obs calendar
         - range note obs calendar code
         - RangeNoteObsCalendarCode
@@ -1597,6 +2198,7 @@ tables:
         type: string
         description: Reset calendar code.
         aliases:
+        - code
         - reset calendar
         - reset calendar code
         - ResetCalendarCode
@@ -1608,6 +2210,7 @@ tables:
         type: string
         description: Reset roll convention code.
         aliases:
+        - code
         - reset roll convention
         - reset roll convention code
         - ResetRollConventionCode
@@ -1619,6 +2222,7 @@ tables:
         type: string
         description: Reset method code.
         aliases:
+        - code
         - reset method
         - reset method code
         - ResetMethodCode
@@ -1648,6 +2252,7 @@ tables:
         type: string
         description: Blmamortization type code.
         aliases:
+        - code
         - blmamortization type
         - blmamortization type code
         - BLMAmortizationTypeCode
@@ -1759,6 +2364,7 @@ tables:
         type: date
         description: Front stub end date.
         aliases:
+        - date
         - front stub end date
         - FrontStubEndDate
         - front_stub_end_date
@@ -1770,6 +2376,7 @@ tables:
         type: date
         description: Back stub start date.
         aliases:
+        - date
         - back stub start date
         - BackStubStartDate
         - back_stub_start_date
@@ -1787,21 +2394,13 @@ tables:
     - PVR00600.nzf
     description: 'Instrument-level analytics outputs for a valuation run (e.g., OAS, price, duration, WAL, CPR). Use this
       table to analyze pricing and risk measures by instrument and portfolio.'
-
     aliases:
     - PVR00600
     - portfolio valuation
     - valuation results
-    - pvr
-    - pricing
-    - oas
-    - price
-    - analytics
-    - risk measures
     - valuation analytics
-    - PVR 00600
     primary_key:
-    - InstrumentID
+    - PortfolioID
     business_tags:
     - analytics
     - portfolio
@@ -1888,7 +2487,6 @@ tables:
         description: Duration.
         aliases:
         - duration
-        - d
         - duration field 3
         - duration field 4
         - duration field 5
@@ -2090,7 +2688,9 @@ tables:
     - instrument characteristics
     - PVR 01100
     primary_key:
+    - DMRRunID
     - InstrumentID
+    - PortfolioID
     business_tags:
     - balances
     - characteristics
@@ -3345,7 +3945,9 @@ tables:
     - notional paydown
     - PVR 01600
     primary_key:
+    - DMRRunID
     - InstrumentID
+    - PaymentStructureID
     business_tags:
     - cashflows
     - paydown
@@ -3695,7 +4297,9 @@ tables:
     - overtime premium
     - PVR 01900
     primary_key:
+    - DMRRunID
     - InstrumentID
+    - PortfolioID
     business_tags:
     - cashflows
     - payment-structure
@@ -3735,6 +4339,7 @@ tables:
         type: date
         description: Over time premium payment date.
         aliases:
+        - date
         - over time premium payment date
         - OverTimePremiumPaymentDate
         - over_time_premium_payment_date
@@ -3774,6 +4379,7 @@ tables:
         type: date
         description: Portfolio date.
         aliases:
+        - date
         - portfolio date
         - portfolio as of date
         - PortfolioDate
@@ -3791,19 +4397,12 @@ tables:
     - '*KRD00100*.nzf'
     - KRD00100.nzf
     description: 'Key Rate Duration (KRD) analytics by instrument/segment/scenario. Use this table to analyze risk bucket
-      sensitivities across segments for a valuation load.
-
-      '
+      sensitivities across segments for a valuation load.'
     aliases:
     - KRD00100
     - key rate duration
-    - krd
-    - risk buckets
-    - scenario
-    - scenarios
-    - krd analytics
-    - duration buckets
     primary_key:
+    - ScenarioType
     - InstrumentID
     business_tags:
     - duration
@@ -3879,118 +4478,57 @@ tables:
     - Top instruments by absolute KRD analytic value
   krd00200:
     file_patterns:
-    - '*KRD00200*.nzf'
-    - KRD00200.nzf
-    description: 'Key Rate Duration (KRD) analytics values by instrument, segment, and scenario for a valuation load. Use
-      this table to analyze KRD analytic values across segments for risk reporting.
-
-      '
+      - '*KRD00200*.nzf'
+      - 'KRD00200.nzf'
+    description: 'Key Rate Duration (KRD) analytics error/status by instrument for a valuation load. Use this table to identify instruments with KRD processing/valuation issues.'
     aliases:
-    - KRD00200
-    - key rate duration
-    - krd
-    - risk buckets
-    - scenario
-    - scenarios
-    - krd analytics
-    - risk segments
+      - KRD00200
+      - krd errors
     primary_key:
-    - ValuationLoadId
-    - InstrumentID
+      - InstrumentID
     business_tags:
-    - krd
-    - rates
-    - risk
-    - scenarios
+      - krd
+      - rates
+      - risk
+      - errors
     columns:
-      ScenarioType:
-        type: string
-        description: Scenario type.
-        aliases:
-        - scenario
-        - scenario type
-        - stress scenario
-        - ScenarioType
-        - scenario_type
-        - scenario-type
-        - st
-      SegmentId:
-        type: string
-        description: Segment id.
-        aliases:
-        - segment
-        - segment id
-        - SegmentId
-        - segment_id
-        - segment-id
-        - si
-      SegmentName:
-        type: string
-        description: Segment name.
-        aliases:
-        - segment name
-        - SegmentName
-        - segment_name
-        - segment-name
-        - sn
-      ValuationLoadId:
-        type: string
-        description: Valuation load id.
-        aliases:
-        - valuation load
-        - valuation load id
-        - ValuationLoadId
-        - valuation_load_id
-        - valuation-load-id
-        - vli
-      AnalyticValue:
-        type: string
-        description: Analytic value.
-        aliases:
-        - analytic value
-        - AnalyticValue
-        - analytic_value
-        - analytic-value
-        - av
       InstrumentID:
         type: string
-        description: Instrument id.
+        description: Instrument identifier.
         aliases:
-        - pool
-        - cusip
-        - security
-        - instrument
-        - instrument id
-        - InstrumentID
-        - instrument_id
-        - instrument-id
-        - ii
-        - instrument id identifier
+          - pool
+          - instrument
+          - instrument id
+          - InstrumentID
+          - instrument_id
+          - instrument-id
+          - ii
+          - instrument id identifier
+
+      KrdError:
+        type: string
+        description: Error indicator/message produced by the KRD run (if any) for the instrument.
+        aliases:
+          - krd error
+          - KrdError
+          - krd_error
+          - krd-error
     examples:
-    - Sum analytic value by segment and scenario from KRD00200
-    - Compare KRD sensitivities across segments for a scenario
-    - Top instruments by absolute KRD analytic value
+      - List instruments with KrdError not null from KRD00200
+      - Count KRD errors by error message from KRD00200
+      - Find instruments where KrdError indicates missing scenario data
+
   krd00300:
     file_patterns:
     - '*KRD00300*.nzf'
     - KRD00300.nzf
     description: 'Scenario curve/bucket definition points (start/end) for KRD-style analyses. Use this table to interpret
-      scenario bucket boundaries.
-
-      '
+      scenario bucket boundaries.'
     aliases:
     - KRD00300
     - key rate duration
-    - krd
-    - risk buckets
-    - scenario
-    - scenarios
-    - bucket definition
-    - scenario buckets
     primary_key:
     - ScenarioType
-    - StartPoint
-    - EndPoint
     business_tags:
     - krd
     - rates
@@ -4319,6 +4857,7 @@ tables:
     - List P&L runs and their descriptions from PNL01800
     - Total return by instrument between two valuation loads
     - Breakdown of total return into price/coupon/accrual components
+
 joins:
 - left_table: pvr01000
   right_table: pvr00100
@@ -4352,7 +4891,6 @@ joins:
 - left_table: pvr00600
   right_table: pvr01100
   left_keys:
-  - DmrRunID
   - InstrumentID
   right_keys:
   - InstrumentID
@@ -4436,3 +4974,19 @@ joins:
   - InstrumentID
   join_type: left
   description: Attach additional KRD analytic values (if present) for the same valuation load/segment/scenario
+- left_table: pvr00500
+  right_table: pvr00400
+  left_keys:
+  - InstrumentID
+  right_keys:
+  - InstrumentID
+  join_type: left
+  description: instruments details
+- left_table: krd00100
+  right_table: krd00300
+  left_keys:
+  - ScenarioType
+  right_keys:
+  - ScenarioType
+  join_type: left
+  description: scenariotype details

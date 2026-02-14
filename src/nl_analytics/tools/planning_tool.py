@@ -398,6 +398,8 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
         raise SchemaValidationError("Invalid plan mode")
 
     tables = list(plan.get("tables") or [])
+    # Defensive: de-duplicate tables while preserving order
+    tables = list(dict.fromkeys([str(t) for t in tables]))
     if not tables:
         raise SchemaValidationError("Plan has no tables")
 
@@ -465,8 +467,27 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
         if parts:
             referenced_cols.append(parts[0].strip())
 
+
+    # If the plan references "identifier" columns that exist in many tables (e.g., InstrumentID),
+    # do NOT let them drive table selection when other, more specific columns are present.
+    def _norm_col_name(x: str) -> str:
+        return "".join(ch.lower() for ch in str(x).split(".")[-1] if ch.isalnum())
+
+    _id_like = {
+        "instrumentid", "portfolioid", "paymentstructureid", "dealid", "loanid", "cusip", "poolid", "securityid"
+    }
+    _signal_cols = []
+    for _c in referenced_cols:
+        _n = _norm_col_name(_c)
+        if not _n:
+            continue
+        if _n not in _id_like:
+            _signal_cols.append(_c)
+
+    # Prefer signal columns when available; otherwise fall back to all referenced columns.
+    _cols_for_pruning = _signal_cols if _signal_cols else referenced_cols
     needed_tables: List[str] = []
-    for col in referenced_cols:
+    for col in _cols_for_pruning:
         # Strip any table qualification to make pruning work when the model emits t.col
         col_tok = str(col).split(".")[-1].strip()
         col_l = col_tok.lower()
@@ -478,9 +499,10 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
                 break
 
     if needed_tables:
-        tables = needed_tables
+        tables = list(dict.fromkeys(needed_tables))
 
     # Ensure joinability (and expand intermediate join tables if needed)
+    tables = list(dict.fromkeys([str(t) for t in tables]))
     join_rules = registry.find_join_path(tables)
     if join_rules:
         expanded = [tables[0]]
@@ -557,6 +579,10 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     dimensions: List[str] = []
     for d in dimensions_in:
         dimensions.append(_canonicalize_col(str(d), all_cols, col_map))
+    # Defensive: de-duplicate dimensions while preserving order.
+    # Some planners repeat the same dimension (e.g., InstrumentID) multiple times,
+    # which leads to duplicated SELECT/GROUP BY entries and confusing results.
+    dimensions = list(dict.fromkeys(dimensions))
 
     # Metrics validation / canonicalization
     metrics_in = list(plan.get("metrics") or [])
@@ -571,6 +597,10 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
             raise SchemaValidationError("No metrics defined")
 
     metrics: List[Dict[str, str]] = []
+    # If the model puts a raw column in metrics for a row-level report, we "demote" it into
+    # dimensions. In that case, we also need to repair SORT entries that might still refer
+    # to the metric display name (ex: "Current UPB Amount").
+    demoted_metric_name_to_col: Dict[str, str] = {}
     allowed_idents = set(SQL_KEYWORDS) | set(ALLOWED_AGGS) | set(ALLOWED_FUNCS) | {
         "double",
         "float",
@@ -608,6 +638,7 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
             if mode == "report" and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", expr_canon) and expr_canon in all_cols:
                 if expr_canon not in dimensions:
                     dimensions.append(expr_canon)
+                demoted_metric_name_to_col[str(name).strip().lower()] = expr_canon
                 continue
             raise SchemaValidationError(
                 "Metric expr must contain an aggregation (SUM/AVG/MIN/MAX/COUNT)"
@@ -628,6 +659,40 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
             raise SchemaValidationError(f"Unknown identifier in metric expression: {tok}")
 
         metrics.append({"name": name, "expr": expr_canon})
+
+    # ---- Canonicalize sort.by into real columns when possible ----
+    # The model often emits business labels ("Current UPB Amount") even when the actual
+    # output column is a canonical field name ("CurrentUPBAmt"). Athena/Postgres can't
+    # ORDER BY a label that isn't a selected alias/column. We fix that here.
+    sort_in = list(plan.get("sort") or [])
+    sort_out: List[Dict[str, Any]] = []
+    for s in sort_in:
+        if not isinstance(s, dict):
+            continue
+        by = s.get("by")
+        if by is None:
+            sort_out.append(s)
+            continue
+        by_s = str(by).strip()
+        if not by_s:
+            sort_out.append(s)
+            continue
+
+        key = by_s.lower()
+        if key in demoted_metric_name_to_col:
+            s2 = dict(s)
+            s2["by"] = demoted_metric_name_to_col[key]
+            sort_out.append(s2)
+            continue
+
+        try:
+            canon = _canonicalize_col(by_s, all_cols, col_map)
+            s2 = dict(s)
+            s2["by"] = canon
+            sort_out.append(s2)
+        except Exception:
+            # Leave as-is (could be a metric alias for aggregated dashboards)
+            sort_out.append(s)
 
     # Filters canonicalize first token as column
     filters_in = list(plan.get("filters") or [])
@@ -657,7 +722,7 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
         dimensions=dimensions,
         filters=filters,
         limit=limit,
-        sort=plan.get("sort"),
+        sort=sort_out,
         chart=plan.get("chart"),
         charts=charts or None,
     )

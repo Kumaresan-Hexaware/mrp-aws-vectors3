@@ -43,15 +43,56 @@ def retrieve_planning_chunks(
 
     k = max(1, int(top_k))
     over = max(k, k * max(1, int(oversample_factor)))
+
+    # Base semantic retrieval
     raw = store.query(question, top_k=over)
 
+    # IMPORTANT:
+    # Reranking can only boost candidates that are already present in the pool.
+    # In practice, "Delivery Price" and similar business terms can sometimes
+    # fail to appear in the initial top-N semantic results (especially with
+    # wide schemas and many price-like columns).
+    #
+    # To make candidate boosting reliable, we *seed* the pool with a few extra
+    # targeted queries for the candidate columns (cheap, small top_k).
+    extra: List[RetrievedChunk] = []
+    cand_list = list(candidate_columns or [])
+    if cand_list:
+        # Limit to avoid excessive embedding calls
+        for (t, c) in cand_list[:10]:
+            try:
+                # Canonical patterns that match how column chunks are written in the index.
+                q2 = f"COLUMN {t}.{c}"
+                extra.extend(store.query(q2, top_k=5))
+            except Exception:
+                # Best-effort only
+                continue
+
+    # Merge + de-dup (by stable meta signature + first 120 chars)
+    pool_all = list(raw) + list(extra)
+    seen_sig = set()
+    merged: List[RetrievedChunk] = []
+    for ch in pool_all:
+        md = ch.metadata or {}
+        sig = (
+            md.get("kind"),
+            md.get("table") or md.get("left"),
+            md.get("column") or md.get("right"),
+            (ch.text or "")[:120],
+        )
+        if sig in seen_sig:
+            continue
+        seen_sig.add(sig)
+        merged.append(ch)
+
+    # Use the merged pool (base retrieval + candidate-seeded retrieval)
     allowed_kinds = set(str(x).strip() for x in (schema_kinds or []))
     if schema_only and allowed_kinds:
-        pool = [c for c in raw if (c.metadata or {}).get("kind") in allowed_kinds]
+        pool = [c for c in merged if (c.metadata or {}).get("kind") in allowed_kinds]
         if not pool:
-            pool = raw
+            pool = merged
     else:
-        pool = raw
+        pool = merged
 
     cand_set = set(candidate_columns or [])
     mentioned_tables = _tables_mentioned(question)
@@ -125,6 +166,17 @@ def retrieve_planning_chunks(
     return RetrievalResult(chunks=chosen, confidence=float(confidence))
 
 
-def retrieve_schema_chunks(store: VectorStore, question: str, top_k: int) -> RetrievalResult:
-    """Backward-compatible wrapper (legacy name used by orchestrator)."""
-    return retrieve_planning_chunks(store, question, top_k=top_k)
+def retrieve_schema_chunks(
+    store: VectorStore,
+    question: str,
+    top_k: int,
+    *,
+    candidate_columns: Optional[Sequence[Tuple[str, str]]] = None,
+) -> RetrievalResult:
+    """Backward-compatible wrapper (legacy name used by orchestrator).
+
+    We keep this wrapper so older code paths can call `retrieve_schema_chunks`,
+    while still allowing the orchestrator to pass registry-driven candidate
+    columns to improve accuracy (e.g., "Delivery Price" -> pvr00400.DeliveryPrice).
+    """
+    return retrieve_planning_chunks(store, question, top_k=top_k, candidate_columns=candidate_columns)

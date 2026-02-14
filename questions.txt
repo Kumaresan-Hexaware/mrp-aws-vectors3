@@ -1,0 +1,67 @@
+Hi Kumar,
+
+
+
+Here is the list of questions from user perspective that you can use in training your model. Let me know if you have any questions. Also, if you feel ready to show us the model setup (I understand it is at early stage), I’d love to see it.
+
+
+
+# Cross-table aggregation with InstrumentID
+    "How many unique instruments are tracked across all tables?"
+
+   # Here the model was unable to identify what instrument type mean
+    "what is the distribution of unique instruments by instrument type."
+
+   # When we give the LLM how to do it by being more specific it does the job, indicates we need to update data dictionary
+    "what is the distribution of unique instruments by instrument type. There is an attribute called instrumentTypeCode which you need to use?"
+
+   "What is the average Trade Price for instruments with a Delivery Price greater than 100?"
+
+   # Requires join and data dictionary
+    "what is the average duration for all instruments with trade price > 100, the instrument"
+
+   "what is the average duration for all instruments with trade price > 100, utilize the attribute called duration"
+
+   "what is average Duration across all unique instruments?"
+
+
+    "what is average of 'Weighted Average life' across all unique instruments?"
+
+
+    "what is the average 3 month CPR across all unique instruments?"
+
+    # Data dictionary for prepaymentModelUsed needs information
+    "which is the most predominant prepayment model used in the instrument analytics output ? Look at the attribute prepaymentModelUsed"
+
+    "what was total processing time taken across all instruments ?"
+
+
+
+   # JOIN working - query looks good
+    "what is the average 3 month CPR across all unique instruments by instrument types ? hint: use instrumentID from portfolio instrument table (PVR00400) to be same as instrumenID from instrument analytics table (PVR00600)",
+
+    # Portfolio comparison
+    "Which Portfolio ID has the highest total Original Amount across all PVR tables?",
+
+    # Credit analysis across multiple tables
+    "What is the average Credit Score for borrowers grouped by Guarantor Type Code?",
+
+    # Time-based analysis
+    "Show me the top 10 instruments by Current UPB Amount with their Settlement Date and Trade Date",
+
+    # Complex aggregation with filtering
+    "What is the weighted average Original LTV Ratio for loans with WALA greater than 100?",
+
+    # Risk metrics from KRD tables
+    "What is the distribution of Analytic Values across different Scenario Types in KRD tables?",
+
+    # Multi-table join analysis
+    "How many instruments appear in both PVR and PNL tables based on InstrumentID?"
+
+
+
+
+
+Thanks
+
+Jun

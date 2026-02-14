@@ -17,13 +17,16 @@ log = get_logger("export.exporter")
 @dataclass(frozen=True)
 class ExportPaths:
     csv_path: Optional[str] = None
+    # XML export removed (pandas XML requires valid XML tag names and may fail
+    # for user-facing column headers). Keep the field for backward compatibility.
     xml_path: Optional[str] = None
     pdf_path: Optional[str] = None
 
 def export_report(df: pd.DataFrame, out_dir: str, base_name: str) -> ExportPaths:
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     csv_path = str(Path(out_dir) / f"{base_name}.csv")
-    xml_path = str(Path(out_dir) / f"{base_name}.xml")
+    # XML export intentionally disabled.
+    xml_path = None
     pdf_path = str(Path(out_dir) / f"{base_name}.pdf")
 
     try:
@@ -33,12 +36,7 @@ def export_report(df: pd.DataFrame, out_dir: str, base_name: str) -> ExportPaths
         log.exception("CSV export failed")
         raise ExportError("CSV export failed") from e
 
-    try:
-        df.to_xml(xml_path, index=False, root_name="Report", row_name="Row")
-        log.info("Exported XML", extra={"path": xml_path})
-    except Exception:
-        log.exception("XML export failed")
-        xml_path = None
+    # NOTE: XML export removed. Leaving `xml_path=None` keeps the return type stable.
 
     try:
         styles = getSampleStyleSheet()

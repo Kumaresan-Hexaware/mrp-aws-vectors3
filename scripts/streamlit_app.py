@@ -20,6 +20,7 @@ import streamlit as st
 import traceback
 import io
 import zipfile
+import html
 from datetime import datetime
 import pandas as pd
 import plotly.io as pio
@@ -35,11 +36,11 @@ from nl_analytics.agents.orchestrator import AgentOrchestrator, INSUFFICIENT
 from nl_analytics.export.exporter import export_report
 from nl_analytics.export.saved_queries import save_query, list_queries, load_query
 
-
 # ------------------------------ Page config ----------------------------------
 
 st.set_page_config(
-    page_title="NL Analytics Agentic Prototype",
+    # Shows in the browser tab / Streamlit header (deploy panel area)
+    page_title="RAG + ReAct Model (Agentic NL→SQL)",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -88,7 +89,6 @@ def _inject_global_style() -> None:
             color: var(--text);
           }
 
-
           /* Sidebar */
           section[data-testid="stSidebar"] {
             background: #ffffff;
@@ -96,7 +96,7 @@ def _inject_global_style() -> None:
           }
 
           /* Reduce Streamlit top padding a bit */
-          .block-container { padding-top: 1.15rem; padding-bottom: 2.5rem; }
+           .block-container { padding-top: 2.4rem; padding-bottom: 2.5rem; }
 
           /* Headings */
           h1, h2, h3, h4 { letter-spacing: -0.02em; }
@@ -124,8 +124,34 @@ def _inject_global_style() -> None:
             justify-content: space-between;
             gap: .75rem;
           }
-          .mrp-kpi .label { color: var(--muted2); font-size: .82rem; }
-          .mrp-kpi .value { font-weight: 700; font-size: 1.25rem; margin-top: .15rem; }
+          .mrp-kpi > div { min-width: 0; }
+          .mrp-kpi .label {
+            color: var(--muted2);
+            font-size: .82rem;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            font-weight: 500;
+          }
+          /* Sidebar KPI values: single-line, non-bold, fit within card */
+          .mrp-kpi .value {
+            font-weight: 400;
+            font-size: .92rem;
+            margin-top: .18rem;
+            line-height: 1.2;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          }
+          .mrp-kpi .value b,
+          .mrp-kpi .value strong {
+            font-weight: inherit;
+          }
+          .kpi-details { margin: .35rem 0 0 0; padding-left: 1.05rem; }
+          .kpi-details li { margin: .12rem 0; color: var(--muted2); font-size: .78rem; font-weight: 400;
+                            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+                            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
           .mrp-kpi .chip {
             display: inline-flex;
             align-items: center;
@@ -137,7 +163,20 @@ def _inject_global_style() -> None:
             font-size: .75rem;
             background: rgba(0,0,0,.10);
             white-space: nowrap;
+            font-weight: 400;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
           }
+          .kpi-list { margin: .25rem 0 0 1.05rem; padding: 0; }
+          .kpi-list li {
+            margin: .18rem 0;
+            font-size: .90rem;
+            font-weight: 400;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .kpi-list li .muted { color: var(--muted2); font-weight: 400; }
 
           /* Buttons */
           .stButton button {
@@ -156,14 +195,12 @@ def _inject_global_style() -> None:
           }
           .stButton button:active { transform: translateY(0px); }
 
-
           /* Inputs */
           .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
             border-radius: 12px !important;
             border: 1px solid var(--stroke) !important;
             background: #ffffff !important;
           }
-
 
           /* Tabs */
           button[data-baseweb="tab"] {
@@ -180,9 +217,34 @@ def _inject_global_style() -> None:
             background: #ffffff;
           }
 
-
           /* Hide Streamlit watermark/footer */
           footer { visibility: hidden; }
+
+          /* Native sidebar KPI helpers */
+          .kpi-value {
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            font-size: .92rem;
+            font-weight: 400;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            margin-top: .15rem;
+          }
+          .kpi-chip {
+            margin-top: .45rem;
+            display: inline-block;
+            padding: .18rem .5rem;
+            border-radius: 999px;
+            border: 1px solid var(--stroke);
+            background: rgba(0,0,0,.08);
+            color: var(--muted);
+            font-size: .75rem;
+            font-weight: 400;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            white-space: nowrap;
+          }
         </style>
         """,
         unsafe_allow_html=True,
@@ -193,22 +255,43 @@ def _material_icon(name: str) -> str:
     return f"<span class='material-icons' style='font-size: 18px; line-height: 1; opacity:.9'>{name}</span>"
 
 
-def _card_kpi(label: str, value: str, chip: str | None = None) -> None:
-    chip_html = f"<span class='chip'>{_material_icon('insights')} {chip}</span>" if chip else ""
-    st.markdown(
-        f"""
-        <div class="mrp-card soft">
-          <div class="mrp-kpi">
-            <div>
-              <div class="label">{label}</div>
-              <div class="value">{value}</div>
-            </div>
-            {chip_html}
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def _card_kpi(
+        label: str,
+        value: str,
+        chip: str | None = None,
+        *,
+        details: list[str] | None = None,
+        value_is_html: bool = False,
+) -> None:
+    """Sidebar KPI card.
+
+    NOTE: We intentionally render this card using *native Streamlit* primitives
+    (container + markdown) rather than raw HTML. In some Streamlit versions and
+    environments, raw HTML can show up literally in the sidebar. Using native
+    components keeps typography consistent and avoids stray tags like </div>.
+    """
+
+    # Normalized text (avoid accidental newlines and keep one-line values)
+    label = str(label)
+    value_text = str(value).replace("\n", " ").strip()
+    chip_text = str(chip).strip() if chip else ""
+
+    # Use a bordered container to look like a card (no HTML).
+    with st.container(border=True):
+        st.caption(label)
+
+        # Value on one line
+        st.markdown(f"<div class='kpi-value'>{html.escape(value_text)}</div>", unsafe_allow_html=True)
+
+        # Optional details (kept compact)
+        if details:
+            lines = [f"- {d.strip().lstrip('•').strip()}" for d in details if d and d.strip()]
+            if lines:
+                st.markdown("\n".join(lines))
+
+        # Chip (small, consistent)
+        if chip_text:
+            st.markdown(f"<div class='kpi-chip'>{html.escape(chip_text)}</div>", unsafe_allow_html=True)
 
 
 # -------------------------- Existing ingestion logic --------------------------
@@ -325,7 +408,6 @@ if "last_plan" not in st.session_state:
 
 _inject_global_style()
 
-
 # ------------------------------ Sidebar --------------------------------------
 
 with st.sidebar:
@@ -355,43 +437,71 @@ with st.sidebar:
         "Navigation",
         ["Workspace", "Reports", "Dashboards"],
         index=0,
-        help="Choose a workspace view (files), reports, or dashboards.",
+        help="Choose a workspace view (landing), reports, or dashboards.",
     )
 
     st.write("")
 
-    sess: DataSession = st.session_state["data_session"]
-    _upl_dir = _ROOT / "data" / "uploads"
-    ws_file_count = len(list(_upl_dir.glob("*"))) if _upl_dir.exists() else 0
-    _card_kpi("Workspace files", str(ws_file_count), chip="Uploads")
-    st.write("")
-    loaded_tables = sess.available_tables()
-    _card_kpi("Loaded tables", str(len(loaded_tables)), chip="Workspace")
-    st.write("")
-
-    # A lightweight status summary (purely UI).
+    # Runtime status (rich UI). Removed workspace counters + tip.
+    # Vector backend is driven by .env / config via Settings.vector_backend
+    vb = (getattr(settings, "vector_backend", None) or "unknown").strip().lower()
     vector_status = "Connected" if getattr(orch, "store", None) is not None else "Unavailable"
-    _card_kpi("Vector store", vector_status, chip="RAG Index")
+
+    # Add helpful detail per backend without changing any logic.
+    vector_detail = ""
+    if vb in ("s3vectors", "s3_vectors", "s3-vectors"):
+        b = getattr(settings, "s3vectors_bucket", "")
+        i = getattr(settings, "s3vectors_index", "")
+        ns = getattr(settings, "s3vectors_namespace", "")
+        parts = [p for p in [b and f"bucket:{b}", i and f"index:{i}", ns and f"ns:{ns}"] if p]
+        vector_detail = (" • " + ", ".join(parts)) if parts else ""
+    elif vb in ("chroma", "chromadb"):
+        d = getattr(settings, "chroma_dir", "")
+        vector_detail = f" • dir:{d}" if d else ""
+    elif vb in ("s3_vector", "s3vector", "s3"):
+        b = getattr(settings, "s3_vector_bucket", "")
+        p = getattr(settings, "s3_vector_prefix", "")
+        parts = [q for q in [b and f"bucket:{b}", p and f"prefix:{p}"] if q]
+        vector_detail = (" • " + ", ".join(parts)) if parts else ""
+    # Vector store (single-line summary in card; details in expander)
+    vb_str = str(vb) if vb else "unknown"
+    vector_summary = f"{vb_str} • {vector_status}"
+
+    vector_details: list[str] = []
+    if vector_detail:
+        # vector_detail looks like: " • bucket:..., index:..., ns:..." (optional leading bullet)
+        cleaned = vector_detail.replace("•", " ").strip()
+        bits = [b.strip() for b in cleaned.split(",") if b.strip()]
+        vector_details = bits
+
+    _card_kpi("Vector store", vector_summary, chip="RAG Index", details=vector_details)
+    st.write("")
+
+    db_engine = getattr(settings, "db_type", None) or "unknown"
+    _card_kpi("DB engine", str(db_engine), chip="Query")
+    st.write("")
+
+    # LLM details are Bedrock-focused in this project; read from Settings/.env
+    is_mock = bool(getattr(settings, "use_mock_bedrock", False))
+    llm_provider = "mock" if is_mock else "bedrock"
+    llm_model = getattr(settings, "bedrock_chat_model_id", "") or ""
+    _card_kpi("LLM", f"{llm_provider}{(' • ' + llm_model) if llm_model else ''}", chip="Agentic")
 
     st.write("")
 
-    with st.expander("Tables", expanded=False):
-        if not loaded_tables:
-            st.caption("No tables in workspace yet.")
-        else:
-            for t in loaded_tables:
-                st.markdown(f"• **{t}**")
+    with st.expander("Runtime config", expanded=False):
+        st.caption("Read-only view of runtime settings (UI only).")
+        try:
+            sdict = settings.model_dump() if hasattr(settings, "model_dump") else dict(settings.__dict__)
+        except Exception:
+            sdict = {}
+        st.json(sdict)
 
     with st.expander("Diagnostics", expanded=False):
         st.caption("UI diagnostics (does not affect business logic).")
         st.json(st.session_state.get("last_plan") or {})
         st.caption("Session state keys")
         st.write(list(st.session_state.keys()))
-
-    st.write("")
-
-    st.caption("Tip: Upload .nzf files in **Workspace**. Use **Reports**/**Dashboards** to run NL queries.")
-
 
 # ------------------------------ Main views -----------------------------------
 
@@ -409,7 +519,7 @@ if "auto_loaded_uploads" not in st.session_state:
 def _page_header(title: str, subtitle: str) -> None:
     st.markdown(
         f"""
-        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:.85rem;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:.85rem;margin-top:1.0rem;">
           <div>
             <div style="font-size:1.45rem;font-weight:800;letter-spacing:-0.02em;">{title}</div>
             <div style="color:var(--muted2);margin-top:.15rem;">{subtitle}</div>
@@ -418,7 +528,6 @@ def _page_header(title: str, subtitle: str) -> None:
         """,
         unsafe_allow_html=True,
     )
-
 
 
 # ------------------------------ Workspace helpers ------------------------------
@@ -528,148 +637,75 @@ def _dashboard_html_bytes(figs: list) -> bytes:
             parts.append("<hr/>")
         except Exception:
             continue
-    html = "<html><head><meta charset='utf-8'/><title>Dashboard</title></head><body>" + "\n".join(parts) + "</body></html>"
+    html = "<html><head><meta charset='utf-8'/><title>Dashboard</title></head><body>" + "\n".join(
+        parts) + "</body></html>"
     return html.encode("utf-8")
 
 
 # ------------------------------ Views ----------------------------------------
 
 def _workspace_view() -> None:
+    """Landing page: rich overview of the agentic RAG + ReAct NL→SQL flow."""
     _ensure_workspace_state()
+
     _page_header(
-        "Workspace",
-        "Upload, manage, and preview files. Reports & Dashboards use only what’s loaded here.",
+        "RAG + ReAct Model (Agentic NL→SQL)",
+        "Retrieve → Plan → Generate → Execute → Explain",
     )
 
-    sess: DataSession = st.session_state["data_session"]
-    files_on_disk = _list_workspace_files()
-
-    # Top status
     st.markdown('<div class="mrp-card">', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 1, 1], gap="medium")
-    c1.metric("Workspace files", str(len(files_on_disk)))
-    c2.metric("Loaded tables", str(len(sess.available_tables())))
-    vector_status = "Connected" if getattr(orch, "store", None) is not None else "Unavailable"
-    c3.metric("Vector store", vector_status)
-    st.caption("✅ Files available for Reports & Dashboards once ingested into the Workspace.")
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-weight:800;font-size:1.05rem;margin-bottom:.35rem;'>How it works</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<div style='color:var(--muted2);margin-bottom:1rem;'>"
+        "Your question is translated into a safe, validated query plan and SQL, executed on the configured engine, and returned as narrative + visuals."
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    left, right = st.columns([1.25, 1], gap="large")
+    steps = [
+        ("1) Retrieve", "route", "Top-K schema/table/join hints pulled from the vector index."),
+        ("2) Plan", "code", "ReAct-style reasoning builds a safe, structured query plan."),
+        ("3) Generate", "bolt", "Planner emits validated SQL (aggregations, joins, aliases)."),
+        ("4) Execute", "description", "SQL runs against the configured engine; results are captured."),
+        ("5) Explain", "summarize", "Narrative + charts/dashboards built from outputs."),
+    ]
 
-    # Upload (single location for ALL uploads)
-    with left:
-        st.markdown('<div class="mrp-card">', unsafe_allow_html=True)
-        st.markdown("### 📤 Upload files")
-        st.caption("Uploads are stored under `data/uploads` for restart-friendly sessions.")
-        upl = st.file_uploader(
-            "Upload files",
-            type=["nzf", "png", "jpg", "jpeg", "webp", "pdf", "txt", "csv", "xlsx"],
-            accept_multiple_files=True,
-            key="ws_upl",
-            help="Upload here only. Reports & Dashboards pull from Workspace files.",
+    for title, icon, bullet in steps:
+        st.markdown(
+            f"""
+            <div class='mrp-card soft' style='margin:.65rem 0;padding:.9rem 1rem;'>
+              <div style='display:flex;gap:.85rem;align-items:flex-start;'>
+                <div style='width:44px;height:44px;border-radius:14px;background:rgba(37,99,235,.10);border:1px solid var(--stroke);display:flex;align-items:center;justify-content:center;flex:0 0 44px;'>
+                  {_material_icon(icon)}
+                </div>
+                <div style='flex:1;min-width:0;'>
+                  <div style='font-weight:900;font-size:1.02rem;letter-spacing:-.01em;'>{title}</div>
+                  <ul style='margin:.35rem 0 0 1.05rem;color:var(--muted);'>
+                    <li>{bullet}</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        if upl:
-            with st.spinner("Ingesting uploads into Workspace…"):
-                ingest_uploaded_files(upl)
-            # Refresh file list after ingest
-            files_on_disk = _list_workspace_files()
 
-        st.markdown("---")
-        st.markdown("### 📁 Workspace files")
-
-        if not files_on_disk:
-            st.info("No files uploaded yet. Add a file above to begin.")
-        else:
-            header = st.columns([2.2, 1, 1.2, 1.6], gap="small")
-            header[0].markdown("**File name**")
-            header[1].markdown("**Size**")
-            header[2].markdown("**Upload date**")
-            header[3].markdown("**Actions**")
-
-            for f in files_on_disk:
-                row = st.columns([2.2, 1, 1.2, 1.6], gap="small")
-                row[0].write(f["name"])
-                row[1].write(_format_bytes(f["size"]))
-                row[2].write(f["mtime"].strftime("%Y-%m-%d %H:%M"))
-                bprev, bdel = row[3].columns([1, 1], gap="small")
-                if bprev.button("Preview", key=f"prev::{f['name']}", help="Show preview on the right"):
-                    st.session_state["ws_selected_file"] = f["path"]
-                if bdel.button("Delete", key=f"del::{f['name']}", help="Delete from Workspace storage (data/uploads)"):
-                    try:
-                        Path(f["path"]).unlink(missing_ok=True)
-                        st.toast(f"Deleted {f['name']}", icon="🗑️")
-                        if st.session_state.get("ws_selected_file") == f["path"]:
-                            st.session_state["ws_selected_file"] = None
-                        files_on_disk = _list_workspace_files()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Delete failed: {e}")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        with st.expander("Notes", expanded=False):
-            st.caption("Deleting a file removes it from Workspace storage. Already-loaded tables remain in memory until restart or workspace reset (business logic unchanged).")
-
-    # Preview pane
-    with right:
-        st.markdown('<div class="mrp-card">', unsafe_allow_html=True)
-        st.markdown("### 👁️ Preview")
-        selected = st.session_state.get("ws_selected_file")
-        if not selected:
-            st.info("Select **Preview** for a file to see it here.")
-            st.markdown("</div>", unsafe_allow_html=True)
-            return
-
-        p = Path(selected)
-        if not p.exists():
-            st.warning("Selected file no longer exists.")
-            st.session_state["ws_selected_file"] = None
-            st.markdown("</div>", unsafe_allow_html=True)
-            return
-
-        st.caption(f"**{p.name}** • {_format_bytes(p.stat().st_size)} • {datetime.fromtimestamp(p.stat().st_mtime).strftime('%Y-%m-%d %H:%M')}")
-        suffix = p.suffix.lower().lstrip(".")
-
-        # Mapping + quick preview
-        if suffix == "nzf":
-            try:
-                table = map_file_to_table(p.name, registry)
-                st.caption(f"Mapped table: **{table}**")
-            except Exception:
-                table = None
-
-            try:
-                dfp, enc = _read_nzf_preview(str(p), nrows=60)
-                st.caption(f"Preview encoding: `{enc}` • showing first {min(len(dfp), 60)} rows")
-                st.dataframe(dfp, height=420)
-            except Exception as e:
-                st.error(f"Preview failed: {e}")
-                st.code(traceback.format_exc())
-        elif suffix in {"png", "jpg", "jpeg", "webp"}:
-            st.image(str(p), use_container_width=True)
-        else:
-            # Generic text preview (best-effort)
-            try:
-                raw = p.read_bytes()
-                st.code(raw[:20000].decode("utf-8", errors="replace"))
-            except Exception as e:
-                st.error(f"Preview failed: {e}")
-
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def _reports_view() -> None:
     _ensure_workspace_state()
 
     _page_header(
-        "Generate Reports from Workspace Files",
-        "Ask a question and export results. Uploads happen only in Workspace.",
+        "Generate Reports",
+        "Ask a question and export results.",
     )
 
     sess: DataSession = st.session_state["data_session"]
     files_on_disk = _list_workspace_files()
-
-    st.info(f"Files loaded in Workspace: **{len(files_on_disk)}** file(s)")
 
     st.markdown('<div class="mrp-card">', unsafe_allow_html=True)
     q = st.text_area(
@@ -716,6 +752,7 @@ def _reports_view() -> None:
                     "CSV",
                     data=Path(exp.csv_path).read_bytes(),
                     file_name=Path(exp.csv_path).name,
+                    mime="application/octet-stream",
                     help="Download report as CSV",
                 )
             else:
@@ -723,6 +760,7 @@ def _reports_view() -> None:
                     "CSV",
                     data=res.df.to_csv(index=False).encode("utf-8"),
                     file_name="report.csv",
+                    mime="application/octet-stream",
                     help="Download report as CSV",
                 )
 
@@ -733,6 +771,7 @@ def _reports_view() -> None:
                     "Excel",
                     data=xlsx,
                     file_name="report.xlsx",
+                    mime="application/octet-stream",
                     help="Download report as Excel (.xlsx)",
                 )
             except Exception as e:
@@ -744,6 +783,7 @@ def _reports_view() -> None:
                     "PDF",
                     data=Path(exp.pdf_path).read_bytes(),
                     file_name=Path(exp.pdf_path).name,
+                    mime="application/octet-stream",
                     help="Download report as PDF",
                 )
             else:
@@ -756,14 +796,12 @@ def _dashboards_view() -> None:
     _ensure_workspace_state()
 
     _page_header(
-        "Dashboards from Workspace Files",
-        "Generate charts/KPIs from Workspace tables and export.",
+        "Dashboards",
+        "Generate charts/KPIs and export.",
     )
 
     sess: DataSession = st.session_state["data_session"]
     files_on_disk = _list_workspace_files()
-
-    st.info(f"Files loaded in Workspace: **{len(files_on_disk)}** file(s)")
 
     st.markdown('<div class="mrp-card">', unsafe_allow_html=True)
 
@@ -848,18 +886,21 @@ def _dashboards_view() -> None:
                     "PNG",
                     data=png_bytes,
                     file_name="dashboard.png" if len(figs) == 1 else "dashboard_png_panels.zip",
+                    mime="application/octet-stream",
                     help="Download PNG (single chart) or ZIP (multiple panels)",
                 )
                 c2.download_button(
                     "PDF",
                     data=pdf_bytes,
                     file_name="dashboard.pdf" if len(figs) == 1 else "dashboard_pdf_panels.zip",
+                    mime="application/octet-stream",
                     help="Download PDF (single chart) or ZIP (multiple panels)",
                 )
                 c3.download_button(
                     "Interactive HTML",
                     data=html_bytes,
                     file_name="dashboard.html",
+                    mime="application/octet-stream",
                     help="Download an interactive HTML dashboard",
                 )
 
@@ -896,6 +937,8 @@ def _dashboards_view() -> None:
                             st.plotly_chart(f, use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+
 def _saved_view() -> None:
     _page_header(
         "Saved dashboards",

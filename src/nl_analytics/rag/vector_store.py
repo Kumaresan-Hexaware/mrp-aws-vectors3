@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Protocol
 from pathlib import Path
 import json
+import time
 
 from nl_analytics.exceptions.errors import RetrievalError
 from nl_analytics.logging.logger import get_logger
@@ -347,8 +348,10 @@ class S3VectorsVectorStore:
                     )
 
 
-        # API allows up to 500 vectors per request (keep smaller for safety)
-        BATCH = 200
+        # API allows up to 500 vectors per request.
+        # In practice, smaller batches reduce the chance of request timeouts.
+        BATCH = 50
+        MAX_RETRIES = 4
         for i in range(0, len(ids), BATCH):
             batch_vectors = []
             for rid, text, meta, emb in zip(
@@ -378,15 +381,48 @@ class S3VectorsVectorStore:
                     }
                 )
 
-            try:
-                self.client.put_vectors(
-                    vectorBucketName=self.bucket,
-                    indexName=self.index,
-                    vectors=batch_vectors,
-                )
-            except Exception as e:
-                log.exception("S3Vectors put_vectors failed")
-                raise RetrievalError("Failed to write vectors to S3 Vectors index") from e
+            last_err = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    self.client.put_vectors(
+                        vectorBucketName=self.bucket,
+                        indexName=self.index,
+                        vectors=batch_vectors,
+                    )
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    # Common transient failures include RequestTimeoutException or network hiccups.
+                    ename = e.__class__.__name__
+                    msg = str(e)
+                    transient = (
+                        "RequestTimeout" in ename
+                        or "Timeout" in ename
+                        or "RequestTimeout" in msg
+                        or "timed out" in msg.lower()
+                        or "connection" in msg.lower()
+                    )
+                    if attempt < MAX_RETRIES and transient:
+                        backoff = min(8, 2 ** (attempt - 1))
+                        log.warning(
+                            "S3Vectors put_vectors transient failure; retrying",
+                            extra={
+                                "attempt": attempt,
+                                "max_retries": MAX_RETRIES,
+                                "backoff_seconds": backoff,
+                                "error": f"{ename}: {msg}",
+                            },
+                        )
+                        time.sleep(backoff)
+                        continue
+
+                    log.exception("S3Vectors put_vectors failed")
+                    raise RetrievalError("Failed to write vectors to S3 Vectors index") from e
+
+            if last_err is not None:
+                # Shouldn't happen (we raise in-loop), but keep defensive.
+                raise RetrievalError("Failed to write vectors to S3 Vectors index") from last_err
 
         log.info("Upserted vectors into S3 Vectors", extra={"count": len(ids), "bucket": self.bucket, "index": self.index})
 

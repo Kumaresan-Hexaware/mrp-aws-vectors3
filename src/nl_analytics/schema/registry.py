@@ -135,13 +135,32 @@ class SchemaRegistry:
             )
 
         joins: List[JoinRule] = []
+
+        def _canon_key(table_name: str, key: str) -> str:
+            """Return the canonical column name for a join key (case-insensitive)."""
+            ts = tables.get(table_name)
+            if ts is None:
+                return key
+            if key in ts.columns:
+                return key
+            key_l = str(key).strip().lower()
+            for cname in ts.columns.keys():
+                if cname.lower() == key_l:
+                    return cname
+            return key
+
         for j in raw.get("joins", []) or []:
+            lt = j["left_table"]
+            rt = j["right_table"]
+            left_keys = [_canon_key(lt, k) for k in list(j["left_keys"])]
+            right_keys = [_canon_key(rt, k) for k in list(j["right_keys"])]
+
             joins.append(
                 JoinRule(
-                    left_table=j["left_table"],
-                    right_table=j["right_table"],
-                    left_keys=list(j["left_keys"]),
-                    right_keys=list(j["right_keys"]),
+                    left_table=lt,
+                    right_table=rt,
+                    left_keys=left_keys,
+                    right_keys=right_keys,
                     join_type=j.get("join_type", "inner"),
                 )
             )
@@ -231,6 +250,19 @@ class SchemaRegistry:
     def find_join_path(self, tables: List[str]) -> List[JoinRule]:
         if not tables:
             return []
+
+        # Defensive: de-duplicate while preserving order.
+        # Planning/expansion can sometimes include the same table multiple times.
+        # Duplicates can make the join search think a table is still "remaining"
+        # even though it's already connected, causing false "no join path" errors.
+        uniq: List[str] = []
+        seen = set()
+        for t in tables:
+            if t in seen:
+                continue
+            seen.add(t)
+            uniq.append(t)
+        tables = uniq
         for t in tables:
             self._ensure_table(t)
         if len(tables) == 1:

@@ -22,7 +22,8 @@ from nl_analytics.rag.vector_store import (
 )
 from nl_analytics.tools.schema_tool import build_schema_context
 from nl_analytics.tools.retrieval_tool import retrieve_schema_chunks
-from nl_analytics.tools.planning_tool import PLAN_SCHEMA, validate_plan
+from nl_analytics.tools.column_resolver import ColumnResolver
+from nl_analytics.tools.planning_tool import PLAN_SCHEMA, validate_plan, QueryPlan
 from nl_analytics.tools.execution_tool import execute_plan
 from nl_analytics.viz.plotly_factory import build_figure
 from nl_analytics.exceptions.errors import RetrievalError, SchemaValidationError, AgentExecutionError, PlotlyRenderError
@@ -49,7 +50,51 @@ class AgentOrchestrator:
     def __init__(self, settings: Settings, registry: SchemaRegistry):
         self.settings = settings
         self.registry = registry
+        # Registry-driven candidate column resolution (boosts schema retrieval accuracy)
+        self.col_resolver = ColumnResolver(registry)
+
+    def _ensure_instrument_id_dimension(self, question: str, plan: QueryPlan) -> QueryPlan:
+        """If user asks for instruments, ensure InstrumentID is selected when available."""
+        q = (question or "").lower()
+        if "instrument" not in q:
+            return plan
+
+        # Only add InstrumentID if at least one selected table contains it.
+        has_instrument = False
+        for t in (plan.tables or []):
+            try:
+                cols = self.registry.columns_for_table(t)
+            except Exception:
+                cols = []
+            if any(str(c).lower() == "instrumentid" for c in cols):
+                has_instrument = True
+                break
+        if not has_instrument:
+            return plan
+
+        if any(str(d).lower() == "instrumentid" for d in (plan.dimensions or [])):
+            return plan
+
+        new_dims = ["InstrumentID"] + list(plan.dimensions or [])
+        new_dims = list(dict.fromkeys(new_dims))  # de-dup preserve order
+
+        return QueryPlan(
+            mode=plan.mode,
+            tables=list(plan.tables or []),
+            metrics=list(plan.metrics or []),
+            dimensions=new_dims,
+            filters=list(plan.filters or []),
+            limit=int(plan.limit),
+            sort=list(plan.sort or []) if plan.sort is not None else None,
+            chart=plan.chart,
+            charts=plan.charts,
+        )
         self.query_store = build_query_store(settings)
+
+        # Registry-driven column suggestion to stabilize retrieval + planning.
+        # This is especially important for ambiguous "price" questions where multiple
+        # tables have price-like columns (TradePrice, DeliveryPrice, BuyDownPrice, etc.).
+        self.col_resolver = ColumnResolver(registry)
 
         self.bedrock = BedrockClient(
             BedrockConfig(
@@ -105,7 +150,16 @@ class AgentOrchestrator:
         else:
             raise NotImplementedError(f"VECTOR_BACKEND not supported: {backend}")
 
-        self._ensure_schema_index_if_missing()
+        # Schema indexing can be slow or temporarily unavailable (e.g., S3 Vectors PutVectors timeout).
+        # We should not fail the entire app startup if indexing fails.
+        self.schema_index_ready: bool = False
+        try:
+            self._ensure_schema_index_if_missing()
+            self.schema_index_ready = True
+        except RetrievalError as e:
+            # Degraded mode: app still runs; retrieval will likely fail until indexing succeeds.
+            log.exception("Schema index bootstrap failed; continuing in degraded mode", extra={"error": str(e)})
+            self.schema_index_ready = False
 
     def _schema_state_path(self) -> Path:
         p = Path("data") / ".cache"
@@ -198,7 +252,10 @@ class AgentOrchestrator:
             header = f"TABLE {tname}: {desc}\n" + alias_line + tag_line
 
 
-            # Convert columns into lines
+            # Convert columns into lines (for TABLE chunks) and also create dedicated COLUMN chunks.
+            # Dedicated COLUMN chunks are critical because the planner/retriever expects
+            # `kind=column` items (e.g., "COLUMN pvr00400.DeliveryPrice ...") and we want
+            # deterministic boosting to work.
             col_lines = []
             for c, cinfo in (t.get("columns") or {}).items():
                 ctype = (cinfo.get("type") or "").strip()
@@ -207,11 +264,28 @@ class AgentOrchestrator:
                 if isinstance(aliases, str):
                     aliases = [aliases]
                 aliases = [str(a).strip() for a in aliases if str(a).strip()]
+
+                # --- TABLE chunk line ---
                 if aliases:
-                    aliases = aliases[:6]
-                    col_lines.append(f"- {c} ({ctype}): {cdesc} | aliases: {', '.join(aliases)}")
+                    aliases_short = aliases[:8]
+                    col_lines.append(f"- {c} ({ctype}): {cdesc} | aliases: {', '.join(aliases_short)}")
                 else:
                     col_lines.append(f"- {c} ({ctype}): {cdesc}")
+
+                # --- COLUMN chunk (small, filterable) ---
+                # Keep it compact to fit S3 Vectors metadata limits.
+                alias_line = ", ".join(aliases[:10])
+                if len(cdesc) > 300:
+                    cdesc_short = cdesc[:297] + "..."
+                else:
+                    cdesc_short = cdesc
+                if alias_line:
+                    col_text = f"COLUMN {tname}.{c} ({ctype}): {cdesc_short} | aliases: {alias_line}"
+                else:
+                    col_text = f"COLUMN {tname}.{c} ({ctype}): {cdesc_short}"
+                docs.append(col_text)
+                metas.append({"kind": "column", "table": tname, "column": c})
+                ids.append(f"col::{tname}::{c}")
 
             # Build chunks (first chunk keeps the legacy id 'table::{tname}' for sentinel checks)
             chunk_idx = 0
@@ -456,7 +530,23 @@ class AgentOrchestrator:
         for attempt in range(1, MAX_ITERS + 1):
             try:
                 # --- ACT: Retrieve relevant schema chunks (RAG) ---
-                retrieval = retrieve_schema_chunks(self.store, question, top_k=self.settings.rag_top_k)
+                # Use deterministic registry hints (aliases + fuzzy) to boost retrieval for
+                # business terms that embeddings often miss (e.g., "Delivery Price").
+                cand_cols = []
+                try:
+                    cand_cols = [
+                        (c.table, c.column)
+                        for c in (self.col_resolver.suggest(question, max_candidates=40) or [])
+                    ]
+                except Exception:
+                    cand_cols = []
+
+                retrieval = retrieve_schema_chunks(
+                    self.store,
+                    question,
+                    top_k=self.settings.rag_top_k,
+                    candidate_columns=cand_cols,
+                )
 
                 # Retrieval summary (keep payload small)
                 top_chunks = []
@@ -617,6 +707,7 @@ class AgentOrchestrator:
                 compact_payload["llm_plan"] = raw_plan
 
                 plan = validate_plan(self.registry, raw_plan)
+                plan = self._ensure_instrument_id_dimension(question, plan)
 
                 # Persist raw/validated plan (detailed mode only)
                 if not compact_mode:

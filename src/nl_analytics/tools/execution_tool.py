@@ -11,7 +11,7 @@ from nl_analytics.tools.planning_tool import QueryPlan
 from nl_analytics.exceptions.errors import AgentExecutionError, SchemaValidationError
 from nl_analytics.logging.logger import get_logger
 from nl_analytics.db.utils import SqlDialect, dialect_for
-from nl_analytics.db.athena import AthenaExecutor
+from nl_analytics.db.athena import AthenaExecutor, rewrite_sql_for_athena
 from nl_analytics.db.redshift import RedshiftExecutor
 
 log = get_logger("tools.execution")
@@ -27,6 +27,17 @@ def build_join_sql(registry: SchemaRegistry, plan_tables: List[str], dialect: Sq
     Note: registry.find_join_path() may return intermediate tables. We rely on plan_tables to already
     include those intermediates (planning_tool expands them), but this function is robust either way.
     """
+    # Defensive: de-duplicate plan_tables while preserving order. The planner may
+    # accidentally include the same table more than once when expanding joins.
+    uniq: List[str] = []
+    seen = set()
+    for t in plan_tables or []:
+        if t in seen:
+            continue
+        seen.add(t)
+        uniq.append(t)
+    plan_tables = uniq
+
     join_path = registry.find_join_path(plan_tables)
     root = plan_tables[0]
     sql = f"FROM {_sql_ident(root, dialect)} AS {root}"
@@ -405,6 +416,16 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     col_ref = _build_column_ref_map(registry, tables)
     sql = _compile_sql(registry, plan, tables, col_ref, dialect)
 
+    # For Athena, persist/log the *actual* SQL we send to Athena.
+    # (AthenaExecutor also applies a safety rewrite for numeric predicates, but
+    # we do it here so session.last_sql + DynamoDB payload contain the real query.)
+    if db_type == "athena":
+        try:
+            sql = rewrite_sql_for_athena(sql)
+        except Exception:
+            # Best-effort; if rewrite fails, keep original SQL.
+            pass
+
     # Expose SQL to the session (for downstream persistence / audit logging).
     try:
         session.last_sql = sql
@@ -412,7 +433,7 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     except Exception:
         pass
 
-    # Always print the engine SQL used for execution (today: DuckDB).
+    # Always print the engine SQL used for execution.
     log.info(f"{db_type.upper()} SQL :::\n{sql}")
 
     # For testing only: also render Postgres SQL (do NOT execute it).
