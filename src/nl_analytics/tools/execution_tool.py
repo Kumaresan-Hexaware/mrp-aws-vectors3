@@ -291,7 +291,7 @@ FROM _u""".strip()
                 gb_parts.append(_sql_ident(d, dialect))
         group_by = f"GROUP BY {', '.join(gb_parts)}"
 
-    where_sql = _filters_sql(plan.filters, col_ref, dialect)
+    where_sql = _filters_sql(plan.filters, col_ref, dialect, registry=registry)
 
     order_sql = ""
     if plan.sort:
@@ -354,7 +354,12 @@ FROM _u""".strip()
     return sql
 
 
-def _filters_sql(filters: List[str], col_ref: Dict[str, str], dialect: SqlDialect) -> str:
+def _filters_sql(
+    filters: List[str],
+    col_ref: Dict[str, str],
+    dialect: SqlDialect,
+    registry: Optional[SchemaRegistry] = None,
+) -> str:
     """Render simple AND-combined filters safely.
 
     Supported patterns (case-insensitive):
@@ -415,6 +420,33 @@ def _filters_sql(filters: List[str], col_ref: Dict[str, str], dialect: SqlDialec
                 safe_val = val
             else:
                 safe_val = "'" + val.replace("'", "''") + "'"
+
+        # Defensive numeric comparisons:
+        # Athena external tables frequently declare numeric-looking columns as VARCHAR.
+        # If the schema registry says the column is numeric AND we compare against a numeric literal,
+        # wrap the column in TRY_CAST(.. AS DOUBLE) for correctness and to avoid TYPE_MISMATCH.
+        if registry is not None and re.match(r'^-?\d+(\.\d+)?$', safe_val):
+            try:
+                alias_name = None
+                col_name = None
+                if "." in col_tok:
+                    alias_name, col_name = col_tok.split(".", 1)
+                elif col_tok in col_ref:
+                    alias_name, col_name = col_ref[col_tok].split(".", 1)
+
+                col_type = ""
+                if alias_name and col_name:
+                    col_type = (
+                        registry.tables.get(alias_name).columns.get(col_name).type  # type: ignore[union-attr]
+                        or ""
+                    ).strip().lower()
+
+                is_numeric = any(k in col_type for k in ["int", "float", "double", "decimal", "numeric", "real"])
+                if is_numeric and op in {">", "<", ">=", "<=", "=", "!="}:
+                    col_sql = dialect.try_cast_double(col_sql)
+            except Exception:
+                pass
+
         safe_parts.append(f"{col_sql} {op} {safe_val}")
 
     if not safe_parts:

@@ -208,6 +208,99 @@ class AgentOrchestrator:
             return plan
         return replace(plan, dimensions=new_dims)
 
+    def _repair_overall_aggregate_shape(self, question: str, plan: QueryPlan) -> QueryPlan:
+        """Remove accidental GROUP BY dimensions for overall aggregate questions.
+
+        Common failure modes:
+          - COUNT(DISTINCT InstrumentID) with InstrumentID in dimensions
+          - AVG(TradePrice) with DeliveryPrice in dimensions
+
+        These produce row-level output instead of a single aggregate value.
+        """
+        q = (question or "").lower()
+
+        # If the user clearly asks for a breakdown, keep dimensions.
+        breakdown_markers = [" by ", " per ", " for each ", " grouped ", " breakdown", " distribution"]
+        if any(m in q for m in breakdown_markers):
+            return plan
+
+        # If the question looks like a single-value aggregate, prefer no dimensions.
+        overall_markers = [
+            "how many",
+            "count",
+            "unique",
+            "average",
+            "avg",
+            "total",
+            "sum",
+            "overall",
+            "across all",
+        ]
+        if not any(m in q for m in overall_markers):
+            return plan
+
+        # Special: COUNT(DISTINCT X) should never GROUP BY X.
+        dims = list(plan.dimensions or [])
+        if len(plan.metrics or []) == 1:
+            expr = str((plan.metrics or [])[0].get("expr", "")).strip().lower()
+            m = re.match(r"^count\s*\(\s*distinct\s+([a-z_][a-z0-9_]*)\s*\)\s*$", expr, flags=re.I)
+            if m:
+                col = m.group(1)
+                new_dims = [d for d in dims if str(d).strip().lower() != col]
+                if new_dims != dims:
+                    return replace(plan, dimensions=new_dims)
+
+        # For other overall questions (e.g., AVG with filters), drop all dimensions.
+        if dims:
+            return replace(plan, dimensions=[])
+        return plan
+
+    def _expand_tables_for_across_all_tables(self, question: str, plan: QueryPlan) -> QueryPlan:
+        """If user asks 'across all tables', expand plan.tables to all registry tables that contain the target column.
+
+        This enables UNION-based compilation for COUNT(DISTINCT InstrumentID) across all tables.
+        """
+        q = (question or "").lower()
+        if "across all tables" not in q and "across all table" not in q and "across all" not in q:
+            return plan
+
+        # Currently we only expand for the common "unique instruments" question.
+        if len(plan.metrics or []) != 1:
+            return plan
+        expr = str((plan.metrics or [])[0].get("expr", "")).strip().lower()
+        m = re.match(r"^count\s*\(\s*distinct\s+([a-z_][a-z0-9_]*)\s*\)\s*$", expr, flags=re.I)
+        if not m:
+            return plan
+        target_col = m.group(1)
+        if target_col.lower() != "instrumentid":
+            return plan
+
+        # Find all tables in the registry containing InstrumentID.
+        expanded: list[str] = []
+        for t, meta in (self.registry.tables or {}).items():
+            try:
+                cols = meta.columns.keys() if meta and meta.columns else []
+            except Exception:
+                cols = []
+            if any(str(c).lower() == "instrumentid" for c in cols):
+                expanded.append(t)
+
+        # Keep deterministic ordering: prefer existing tables first.
+        out = []
+        for t in (plan.tables or []):
+            if t not in out:
+                out.append(t)
+        for t in expanded:
+            if t not in out:
+                out.append(t)
+
+        # Don't explode the query if schema is huge; cap defensively.
+        # (Still enough for the PVR/KRD/PNR style datasets.)
+        out = out[:60]
+        if len(out) <= 1:
+            return plan
+        return replace(plan, tables=out)
+
     def _schema_state_path(self) -> Path:
         p = Path("data") / ".cache"
         p.mkdir(parents=True, exist_ok=True)
@@ -723,6 +816,9 @@ class AgentOrchestrator:
                     "IMPORTANT: Choose the correct plan shape: "
                     "(A) If the user asks for counts/sums/averages/min/max or grouping (e.g., 'by', 'per', 'average'), put those in metrics using an aggregation (SUM/AVG/MIN/MAX/COUNT) and list grouping fields in dimensions. "
                     "(B) If the user asks to list rows / exceptions / missing or present values (e.g., 'missing', 'null', 'blank', 'present', 'show instruments where...'), return a row-level plan: put the columns to display in dimensions, leave metrics empty, and express conditions in filters using 'IS NULL' / 'IS NOT NULL' (or simple comparisons). "
+                    "CRITICAL RULES: (1) If metric is COUNT(DISTINCT X), do NOT put X in dimensions (no GROUP BY X). "
+                    "(2) If user asks for an overall value (no breakdown), keep dimensions empty. "
+                    "(3) If user asks 'across all tables', choose ALL relevant tables that contain the requested column (e.g., InstrumentID). "
                     "For dashboards, you may include either a single 'chart' object or a list of 'charts' (e.g., KPI + bar chart). "
                     "Output JSON only."
                 )
@@ -756,6 +852,8 @@ class AgentOrchestrator:
                 plan = validate_plan(self.registry, raw_plan)
                 plan = self._ensure_instrument_id_dimension(question, plan)
                 plan = self._repair_distribution_instrument_type(question, plan)
+                plan = self._repair_overall_aggregate_shape(question, plan)
+                plan = self._expand_tables_for_across_all_tables(question, plan)
 
                 # Persist raw/validated plan (detailed mode only)
                 if not compact_mode:
