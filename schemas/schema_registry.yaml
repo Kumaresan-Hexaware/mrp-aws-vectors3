@@ -1,7 +1,7 @@
 version: 1
 defaults:
   file_extension: .nzf
-  delimiter: Ç
+  delimiter: "\xC7"
   encoding: latin-1
   header: true
   trim_headers: true
@@ -902,8 +902,8 @@ tables:
     - '*pvr00400*.nzf'
     - PVR00400.nzf
     - PVR00400_synthetic_1000.nzf
-    description: 'Instrument master attributes within a portfolio context (e.g., CUSIP, deal, dates, balances). Use this table
-      for instrument-level rollups and portfolio composition analysis.'
+    description: Instrument master attributes within a portfolio context (e.g., CUSIP, deal, dates, balances). Use this table
+      for instrument-level rollups and portfolio composition analysis.
     aliases:
     - PVR00400
     - portfolio valuation
@@ -963,13 +963,13 @@ tables:
         type: string
         description: Instrument type code (security/instrument classification used for reporting and grouping).
         aliases:
-          - instrument type
-          - instrument type code
-          - security type
-          - security type code
-          - instrument classification
-          - instrument category
-          - product type (instrument)
+        - instrument type
+        - instrument type code
+        - security type
+        - security type code
+        - instrument classification
+        - instrument category
+        - product type (instrument)
       GuarantorTypeCode:
         type: string
         description: Guarantor type code.
@@ -1426,8 +1426,8 @@ tables:
         type: float
         description: Delivery price (price used for delivery/settlement).
         aliases:
-          - delivery price
-          - settlement delivery price
+        - delivery price
+        - settlement delivery price
       DeliveryPriceAdjPercent:
         type: float
         description: Delivery price adj percent.
@@ -2392,8 +2392,8 @@ tables:
     file_patterns:
     - '*PVR00600*.nzf'
     - PVR00600.nzf
-    description: 'Instrument-level analytics outputs for a valuation run (e.g., OAS, price, duration, WAL, CPR). Use this
-      table to analyze pricing and risk measures by instrument and portfolio.'
+    description: Instrument-level analytics outputs for a valuation run (e.g., OAS, price, duration, WAL, CPR). Use this table
+      to analyze pricing and risk measures by instrument and portfolio.
     aliases:
     - PVR00600
     - portfolio valuation
@@ -2508,6 +2508,315 @@ tables:
         - cpr1_year
         - cpr1-year
         - cy
+      CPR1Month:
+        type: float
+        description: Conditional prepayment rate (CPR) - 1 month horizon.
+        aliases:
+        - cpr 1 month
+        - 1m cpr
+        - cpr1m
+        - prepayment 1 month
+        - CPR1Month
+        - cpr1_month
+        - cpr1-month
+      CPR3Month:
+        type: float
+        description: Conditional prepayment rate (CPR) - 3 month horizon.
+        aliases:
+        - cpr 3 month
+        - 3m cpr
+        - cpr3m
+        - prepayment 3 month
+        - CPR3Month
+        - cpr3_month
+        - cpr3-month
+      CPRLongTerm:
+        type: float
+        description: Long-term conditional prepayment rate (CPR) assumption/output.
+        aliases:
+        - long term cpr
+        - cpr long term
+        - lt cpr
+        - long-run prepayment
+        - CPRLongTerm
+        - cpr_long_term
+        - cpr-long-term
+      vCPR1Year:
+        type: float
+        description: Volatility-adjusted CPR (vCPR) - 1 year horizon (model output).
+        aliases:
+        - vcpr 1 year
+        - vol adj cpr
+        - volatility adjusted cpr
+        - 1y vcpr
+        - vCPR1Year
+        - vcpr_1_year
+        - vcpr1year
+      UpPrice:
+        type: float
+        description: Price under upward rate shock / scenario.
+        aliases:
+        - up price
+        - price up
+        - shock up price
+        - UpPrice
+        - up_price
+        - up-price
+      DownPrice:
+        type: float
+        description: Price under downward rate shock / scenario.
+        aliases:
+        - down price
+        - price down
+        - shock down price
+        - DownPrice
+        - down_price
+        - down-price
+      UpDuration:
+        type: float
+        description: Duration under upward rate shock / scenario.
+        aliases:
+        - up duration
+        - duration up
+        - dur up
+        - shock up duration
+        - UpDuration
+        - up_duration
+        - up-duration
+      DownDuration:
+        type: float
+        description: Duration under downward rate shock / scenario.
+        aliases:
+        - down duration
+        - duration down
+        - dur down
+        - shock down duration
+        - DownDuration
+        - down_duration
+        - down-duration
+      Convexity:
+        type: float
+        description: Convexity (second-order price sensitivity measure).
+        aliases:
+        - convexity
+        - Convexity
+        - convexity_value
+        - convexity-value
+      Vega:
+        type: float
+        description: Vega (price sensitivity to volatility).
+        aliases:
+        - vega
+        - volatility sensitivity
+        - Vega
+        - vega_value
+        - vega-value
+      OasVega:
+        type: float
+        description: OAS vega (volatility sensitivity under OAS framework).
+        aliases:
+        - oas vega
+        - oas-vol vega
+        - OasVega
+        - oas_vega
+        - oas-vega
+      SpreadDuration:
+        type: float
+        description: Spread duration (price sensitivity to OAS/spread changes).
+        aliases:
+        - spread duration
+        - oas duration
+        - spread dur
+        - SpreadDuration
+        - spread_duration
+        - spread-duration
+      TimeValue:
+        type: float
+        description: Time value component (option/time value).
+        aliases:
+        - time value
+        - option time value
+        - TimeValue
+        - time_value
+        - time-value
+      ZvSpread:
+        type: float
+        description: ZV spread.
+        aliases:
+        - zv spread
+        - z-v spread
+        - ZvSpread
+        - zv_spread
+        - zv-spread
+      ZvValue:
+        type: float
+        description: ZV value.
+        aliases:
+        - zv value
+        - z-v value
+        - ZvValue
+        - zv_value
+        - zv-value
+      ATM:
+        type: float
+        description: At-the-money (ATM) value/measure (model output).
+        aliases:
+        - atm
+        - at the money
+        - at-the-money
+        - ATM
+      Yield:
+        type: float
+        description: Model yield / yield to maturity (model output).
+        aliases:
+        - yield
+        - model yield
+        - ytm
+        - yield to maturity
+        - Yield
+      CFR1Year:
+        type: float
+        description: Conditional foreclosure rate (CFR) - 1 year horizon.
+        aliases:
+        - cfr 1 year
+        - 1y cfr
+        - cfr1y
+        - CFR1Year
+        - cfr1_year
+        - cfr1-year
+      CFR5Year:
+        type: float
+        description: Conditional foreclosure rate (CFR) - 5 year horizon.
+        aliases:
+        - cfr 5 year
+        - 5y cfr
+        - cfr5y
+        - CFR5Year
+        - cfr5_year
+        - cfr5-year
+      CFRLifeTime:
+        type: float
+        description: Lifetime conditional foreclosure rate (CFR).
+        aliases:
+        - cfr lifetime
+        - lifetime cfr
+        - CFRLifeTime
+        - cfr_lifetime
+        - cfr-life-time
+      CumLoss1Year:
+        type: float
+        description: Cumulative loss - 1 year horizon.
+        aliases:
+        - cumulative loss 1 year
+        - cum loss 1 year
+        - 1y cumulative loss
+        - CumLoss1Year
+        - cum_loss_1_year
+        - cumloss1year
+      CumLoss5Year:
+        type: float
+        description: Cumulative loss - 5 year horizon.
+        aliases:
+        - cumulative loss 5 year
+        - cum loss 5 year
+        - 5y cumulative loss
+        - CumLoss5Year
+        - cum_loss_5_year
+        - cumloss5year
+      CumLossLifeTime:
+        type: float
+        description: Lifetime cumulative loss.
+        aliases:
+        - cumulative loss lifetime
+        - cum loss lifetime
+        - lifetime cumulative loss
+        - CumLossLifeTime
+        - cum_loss_lifetime
+        - cumlosslifetime
+      MortgageCashflowModelVersion:
+        type: string
+        description: Mortgage cashflow model version used for the run.
+        aliases:
+        - mortgage cashflow model version
+        - cashflow model version
+        - model version
+        - MortgageCashflowModelVersion
+        - mortgage_cashflow_model_version
+        - mortgage-cashflow-model-version
+      PrepaymentModelUsed:
+        type: string
+        description: Prepayment model used for the run.
+        aliases:
+        - prepayment model used
+        - prepay model used
+        - prepayment model
+        - PrepaymentModelUsed
+        - prepayment_model_used
+        - prepayment-model-used
+      PrepaymentModelVersion:
+        type: string
+        description: Prepayment model version used for the run.
+        aliases:
+        - prepayment model version
+        - prepay model version
+        - PrepaymentModelVersion
+        - prepayment_model_version
+        - prepayment-model-version
+      LoanSizeAmountUsed:
+        type: float
+        description: Loan size amount used (model input/assumption).
+        aliases:
+        - loan size amount used
+        - loan size amount
+        - LoanSizeAmountUsed
+        - loan_size_amount_used
+        - loan-size-amount-used
+      ModelAccruedInterest:
+        type: float
+        description: Model accrued interest.
+        aliases:
+        - model accrued interest
+        - accrued interest
+        - ModelAccruedInterest
+        - model_accrued_interest
+        - model-accrued-interest
+      PayLegModelAccruedInterest:
+        type: float
+        description: Pay leg model accrued interest.
+        aliases:
+        - pay leg accrued interest
+        - pay leg model accrued interest
+        - PayLegModelAccruedInterest
+        - pay_leg_model_accrued_interest
+        - pay-leg-model-accrued-interest
+      RecLegModelAccruedInterest:
+        type: float
+        description: Receive leg model accrued interest.
+        aliases:
+        - receive leg accrued interest
+        - rec leg model accrued interest
+        - RecLegModelAccruedInterest
+        - rec_leg_model_accrued_interest
+        - rec-leg-model-accrued-interest
+      Error:
+        type: string
+        description: Error indicator/message produced by the valuation run (if any).
+        aliases:
+        - error
+        - model error
+        - error message
+        - error code
+        - Error
+      ProcessingTime:
+        type: float
+        description: Processing time for the valuation (seconds).
+        aliases:
+        - processing time
+        - runtime
+        - elapsed time
+        - ProcessingTime
+        - processing_time
+        - processing-time
     examples:
     - Count instruments by portfolio for a given run/date using PVR00600
     - Show key metrics grouped by portfolio or instrument from PVR00600
@@ -4068,216 +4377,6 @@ tables:
     - Count instruments by portfolio for a given run/date using PVR01600
     - Show key metrics grouped by portfolio or instrument from PVR01600
     - Filter by scenario/date fields and summarize results from PVR01600
-  pvr01700:
-    file_patterns:
-    - '*PVR01700*.nzf'
-    - PVR01700.nzf
-    description: 'Range note bounds and observation rules by instrument/payment structure and as-of portfolio date. Use this
-      table to analyze range note parameters (bounds, compare rules, reference index).
-
-      '
-    aliases:
-    - PVR01700
-    - portfolio valuation
-    - valuation results
-    - pvr
-    - interest rates
-    - rates
-    - payment terms
-    - coupon
-    - range note
-    - range bounds
-    - coupon bounds
-    - PVR 01700
-    primary_key:
-    - DMRRunID
-    - InstrumentID
-    - PaymentStructureID
-    business_tags:
-    - payment-structure
-    - portfolio
-    - range-note
-    - rates
-    - valuation
-    columns:
-      DMRRunID:
-        type: string
-        description: Dmrrun id.
-        aliases:
-        - dmrrun
-        - run id
-        - batch id
-        - dmrrun id
-        - dmr run id
-        - dmr id
-        - run batch id
-        - DMRRunID
-        - dmrrun_id
-        - dmrrun-id
-      InstrumentID:
-        type: string
-        description: Instrument id.
-        aliases:
-        - pool
-        - cusip
-        - security
-        - instrument
-        - instrument id
-        - InstrumentID
-        - instrument_id
-        - instrument-id
-        - ii
-        - instrument id identifier
-      PaymentStructureID:
-        type: string
-        description: Payment structure id.
-        aliases:
-        - ps id
-        - structure id
-        - payment structure
-        - payment structure id
-        - payment struct id
-        - pmt structure id
-        - paymentstructureid
-        - payment_structure_id
-        - payment-structure-id
-        - psi
-      PaymentStructureTypeCode:
-        type: string
-        description: Payment structure type code.
-        aliases:
-        - code
-        - type code
-        - payment type
-        - structure type
-        - payment structure type
-        - payment structure type code
-        - pmt structure type
-        - PaymentStructureTypeCode
-        - payment_structure_type_code
-        - payment-structure-type-code
-      RangeNotePeriodBeginDate:
-        type: date
-        description: Range note period begin date.
-        aliases:
-        - date
-        - range note period begin date
-        - RangeNotePeriodBeginDate
-        - range_note_period_begin_date
-        - range-note-period-begin-date
-        - rnpbd
-        - range note period begin date date
-        - as of range note period begin date
-      RangeNotePeriodEndDate:
-        type: date
-        description: Range note period end date.
-        aliases:
-        - date
-        - range note period end date
-        - RangeNotePeriodEndDate
-        - range_note_period_end_date
-        - range-note-period-end-date
-        - rnped
-        - range note period end date date
-        - as of range note period end date
-      RangeNoteLowerBoundRate:
-        type: float
-        description: Range note lower bound rate.
-        aliases:
-        - range note lower bound rate
-        - RangeNoteLowerBoundRate
-        - range_note_lower_bound_rate
-        - range-note-lower-bound-rate
-        - rnlbr
-        - range note lower bound rate rate
-        - range note lower bound rate %
-      RangeNoteLowerBoundCompareRule:
-        type: string
-        description: Range note lower bound compare rule.
-        aliases:
-        - range note lower bound compare rule
-        - RangeNoteLowerBoundCompareRule
-        - range_note_lower_bound_compare_rule
-        - range-note-lower-bound-compare-rule
-        - rnlbcr
-      RangeNoteUpperBoundRate:
-        type: float
-        description: Range note upper bound rate.
-        aliases:
-        - range note upper bound rate
-        - RangeNoteUpperBoundRate
-        - range_note_upper_bound_rate
-        - range-note-upper-bound-rate
-        - rnubr
-        - range note upper bound rate rate
-        - range note upper bound rate %
-      RangeNoteUpperBoundCompareRule:
-        type: string
-        description: Range note upper bound compare rule.
-        aliases:
-        - range note upper bound compare rule
-        - RangeNoteUpperBoundCompareRule
-        - range_note_upper_bound_compare_rule
-        - range-note-upper-bound-compare-rule
-        - rnubcr
-      RangeNoteRefIndex:
-        type: string
-        description: Range note ref index.
-        aliases:
-        - range note ref index
-        - RangeNoteRefIndex
-        - range_note_ref_index
-        - range-note-ref-index
-        - rnri
-      RangeNoteRefIndexSpreads:
-        type: float
-        description: Range note ref index spreads.
-        aliases:
-        - range note ref index spreads
-        - RangeNoteRefIndexSpreads
-        - range_note_ref_index_spreads
-        - range-note-ref-index-spreads
-        - rnris
-      RangeNoteRefIndexMultipliers:
-        type: string
-        description: Range note ref index multipliers.
-        aliases:
-        - range note ref index multipliers
-        - RangeNoteRefIndexMultipliers
-        - range_note_ref_index_multipliers
-        - range-note-ref-index-multipliers
-        - rnrim
-      PortfolioID:
-        type: string
-        description: Portfolio id.
-        aliases:
-        - book
-        - account
-        - portfolio
-        - portfolio id
-        - account id
-        - PortfolioID
-        - portfolio_id
-        - portfolio-id
-        - pi
-        - portfolio id identifier
-      PortfolioDate:
-        type: date
-        description: Portfolio date.
-        aliases:
-        - date
-        - portfolio date
-        - portfolio as of date
-        - PortfolioDate
-        - portfolio_date
-        - portfolio-date
-        - pd
-        - portfolio date date
-        - as of portfolio date
-    examples:
-    - Count instruments by portfolio for a given run/date using PVR01700
-    - Show key metrics grouped by portfolio or instrument from PVR01700
-    - Filter by scenario/date fields and summarize results from PVR01700
   pvr01900:
     file_patterns:
     - '*PVR01900*.nzf'
@@ -4396,8 +4495,8 @@ tables:
     file_patterns:
     - '*KRD00100*.nzf'
     - KRD00100.nzf
-    description: 'Key Rate Duration (KRD) analytics by instrument/segment/scenario. Use this table to analyze risk bucket
-      sensitivities across segments for a valuation load.'
+    description: Key Rate Duration (KRD) analytics by instrument/segment/scenario. Use this table to analyze risk bucket sensitivities
+      across segments for a valuation load.
     aliases:
     - KRD00100
     - key rate duration
@@ -4478,52 +4577,51 @@ tables:
     - Top instruments by absolute KRD analytic value
   krd00200:
     file_patterns:
-      - '*KRD00200*.nzf'
-      - 'KRD00200.nzf'
-    description: 'Key Rate Duration (KRD) analytics error/status by instrument for a valuation load. Use this table to identify instruments with KRD processing/valuation issues.'
+    - '*KRD00200*.nzf'
+    - KRD00200.nzf
+    description: Key Rate Duration (KRD) analytics error/status by instrument for a valuation load. Use this table to identify
+      instruments with KRD processing/valuation issues.
     aliases:
-      - KRD00200
-      - krd errors
+    - KRD00200
+    - krd errors
     primary_key:
-      - InstrumentID
+    - InstrumentID
     business_tags:
-      - krd
-      - rates
-      - risk
-      - errors
+    - krd
+    - rates
+    - risk
+    - errors
     columns:
       InstrumentID:
         type: string
         description: Instrument identifier.
         aliases:
-          - pool
-          - instrument
-          - instrument id
-          - InstrumentID
-          - instrument_id
-          - instrument-id
-          - ii
-          - instrument id identifier
-
+        - pool
+        - instrument
+        - instrument id
+        - InstrumentID
+        - instrument_id
+        - instrument-id
+        - ii
+        - instrument id identifier
       KrdError:
         type: string
         description: Error indicator/message produced by the KRD run (if any) for the instrument.
         aliases:
-          - krd error
-          - KrdError
-          - krd_error
-          - krd-error
+        - krd error
+        - KrdError
+        - krd_error
+        - krd-error
     examples:
-      - List instruments with KrdError not null from KRD00200
-      - Count KRD errors by error message from KRD00200
-      - Find instruments where KrdError indicates missing scenario data
-
+    - List instruments with KrdError not null from KRD00200
+    - Count KRD errors by error message from KRD00200
+    - Find instruments where KrdError indicates missing scenario data
   krd00300:
     file_patterns:
     - '*KRD00300*.nzf'
     - KRD00300.nzf
-    description: 'Scenario curve/bucket definition points (start/end) for KRD-style analyses. Use this table to interpret
-      scenario bucket boundaries.'
+    description: Scenario curve/bucket definition points (start/end) for KRD-style analyses. Use this table to interpret scenario
+      bucket boundaries.
     aliases:
     - KRD00300
     - key rate duration
@@ -4857,7 +4955,6 @@ tables:
     - List P&L runs and their descriptions from PNL01800
     - Total return by instrument between two valuation loads
     - Breakdown of total return into price/coupon/accrual components
-
 joins:
 - left_table: pvr01000
   right_table: pvr00100
@@ -4933,14 +5030,6 @@ joins:
   join_type: left
   description: Attach principal/notional paydown events to payment structures
   risk_notes: Likely 1:many (multiple paydown dates) -> aggregate before joining for rollups.
-- left_table: pvr01500
-  right_table: pvr01700
-  left_keys:
-  - InstrumentID
-  right_keys:
-  - InstrumentID
-  join_type: left
-  description: Attach range note bounds/observation rules to payment structures
 - left_table: pvr01500
   right_table: pvr01300
   left_keys:

@@ -403,9 +403,22 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     if not tables:
         raise SchemaValidationError("Plan has no tables")
 
-    # Validate tables exist in registry
+    # Validate tables exist in registry.
+    # The retriever/LLM may suggest tables that are not present in the schema registry
+    # (or have been removed). Instead of hard-failing, drop unknown tables and proceed
+    # if at least one valid table remains.
+    valid_tables = []
+    skipped_tables = []
     for t in tables:
-        registry.get_table(t)
+        try:
+            registry.get_table(t)
+            valid_tables.append(t)
+        except Exception:
+            skipped_tables.append(t)
+
+    tables = valid_tables
+    if not tables:
+        raise SchemaValidationError(f"Plan has no valid tables after pruning unknown tables: {skipped_tables}")
 
     # --- Augment tables when the plan references business aliases/columns that live elsewhere ---
     # Heuristic: only auto-add when the alias resolves to a single table (to avoid adding many tables for generic words like 'date').

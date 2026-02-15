@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Dict, Any, List, Tuple, Optional
 import re
 import duckdb
@@ -11,7 +12,7 @@ from nl_analytics.tools.planning_tool import QueryPlan
 from nl_analytics.exceptions.errors import AgentExecutionError, SchemaValidationError
 from nl_analytics.logging.logger import get_logger
 from nl_analytics.db.utils import SqlDialect, dialect_for
-from nl_analytics.db.athena import AthenaExecutor, rewrite_sql_for_athena
+from nl_analytics.db.athena import AthenaExecutor, rewrite_sql_for_athena, filter_existing_tables
 from nl_analytics.db.redshift import RedshiftExecutor
 
 log = get_logger("tools.execution")
@@ -99,6 +100,24 @@ def _quote_cols_in_expr(expr: str, col_ref: Dict[str, str], dialect: SqlDialect)
     if ";" in low or "--" in low or "/*" in low or "*/" in low:
         raise AgentExecutionError("Unsafe tokens in metric expression")
 
+    def _has_arith(s: str) -> bool:
+        in_single = False
+        in_double = False
+        for ch in s:
+            if ch == "'" and not in_double:
+                in_single = not in_single
+                continue
+            if ch == '"' and not in_single:
+                in_double = not in_double
+                continue
+            if in_single or in_double:
+                continue
+            if ch in "+-*/":
+                return True
+        return False
+
+    arith = _has_arith(expr)
+
     cols_sorted = sorted(col_ref.keys(), key=len, reverse=True)
 
     out: List[str] = []
@@ -116,7 +135,7 @@ def _quote_cols_in_expr(expr: str, col_ref: Dict[str, str], dialect: SqlDialect)
                 for c in cols_sorted:
                     qual = col_ref[c]
                     alias, col = qual.split(".", 1)
-                    seg = re.sub(rf"\b{re.escape(c)}\b", f"{alias}.{_sql_ident(col, dialect)}", seg)
+                    seg = re.sub(rf"\b{re.escape(c)}\b", (dialect.try_cast_double(f"{alias}.{_sql_ident(col, dialect)}") if arith else f"{alias}.{_sql_ident(col, dialect)}"), seg)
                 out.append(seg)
                 buf = ""
             out.append("'")
@@ -128,7 +147,7 @@ def _quote_cols_in_expr(expr: str, col_ref: Dict[str, str], dialect: SqlDialect)
                 for c in cols_sorted:
                     qual = col_ref[c]
                     alias, col = qual.split(".", 1)
-                    seg = re.sub(rf"\b{re.escape(c)}\b", f"{alias}.{_sql_ident(col, dialect)}", seg)
+                    seg = re.sub(rf"\b{re.escape(c)}\b", (dialect.try_cast_double(f"{alias}.{_sql_ident(col, dialect)}") if arith else f"{alias}.{_sql_ident(col, dialect)}"), seg)
                 out.append(seg)
                 buf = ""
             out.append('"')
@@ -141,7 +160,7 @@ def _quote_cols_in_expr(expr: str, col_ref: Dict[str, str], dialect: SqlDialect)
         for c in cols_sorted:
             qual = col_ref[c]
             alias, col = qual.split(".", 1)
-            seg = re.sub(rf"\b{re.escape(c)}\b", f"{alias}.{_sql_ident(col, dialect)}", seg)
+            seg = re.sub(rf"\b{re.escape(c)}\b", (dialect.try_cast_double(f"{alias}.{_sql_ident(col, dialect)}") if arith else f"{alias}.{_sql_ident(col, dialect)}"), seg)
         out.append(seg)
     return "".join(out)
 
@@ -218,6 +237,32 @@ def _compile_sql(
     This is used for execution (db_type dialect) and also for rendering alternate
     dialect SQL (ex: Postgres) for testing/logging.
     """
+    # Special case: overall distinct count across multiple tables with no dimensions.
+    # Example: COUNT(DISTINCT InstrumentID) across all tables should NOT pick a single base table.
+    if tables and len(tables) > 1 and (not (plan.dimensions or [])) and (plan.metrics or []) and len(plan.metrics) == 1:
+        expr0 = str((plan.metrics or [])[0].get("expr", "")).strip()
+        m = re.match(r"(?is)^count\s*\(\s*distinct\s+([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$", expr0)
+        if m:
+            col = m.group(1)
+            selects: List[str] = []
+            for t in tables:
+                try:
+                    cols = set(registry.columns_for_table(t))
+                except Exception:
+                    cols = set()
+                if col in cols:
+                    selects.append(f'SELECT {_sql_ident(col, dialect)} AS {_sql_ident(col, dialect)} FROM {_sql_ident(t, dialect)}')
+            if selects:
+                # UNION ALL is safe here because we apply COUNT(DISTINCT ...) on top.
+                # Using UNION (distinct) can be slower and does not improve correctness.
+                union_sql = "\nUNION ALL\n".join(selects)
+                metric_name = str((plan.metrics or [])[0].get("name", "metric"))
+                return f"""WITH _u AS (
+{union_sql}
+)
+SELECT COUNT(DISTINCT {_sql_ident(col, dialect)}) AS {_sql_ident(metric_name, dialect)}
+FROM _u""".strip()
+
 
     # SELECT list
     select_cols: List[str] = []
@@ -416,7 +461,6 @@ def _choose_base_table(plan: QueryPlan, tables: List[str]) -> str:
         "pvr01400",
         "pvr01500",
         "pvr01600",
-        "pvr01700",
         "pvr01900",
         "pvr00900",
     ]
@@ -428,18 +472,173 @@ def _choose_base_table(plan: QueryPlan, tables: List[str]) -> str:
     return tables[0]
 
 
+# --- Plan sanitation helpers ----------------------------------------------------
+
+_IDENT_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\b")
+
+
+def _extract_identifiers(expr: str) -> List[str]:
+    """Extract identifier-like tokens from an expression (best-effort)."""
+    if not expr:
+        return []
+    tmp = re.sub(r"'([^']|'')*'", " ", expr)
+    tmp = re.sub(r'"([^"]|"")*"', " ", tmp)
+    toks = _IDENT_RE.findall(tmp)
+    drop = {k.lower() for k in (
+        "select","from","where","group","by","order","limit","asc","desc","and","or","not","in",
+        "like","is","null","case","when","then","else","end","distinct","as","on","join","left","right",
+        "inner","outer","between","try_cast","cast","sum","avg","min","max","count","coalesce","round","date_trunc","strftime"
+    )}
+    return [t for t in toks if t.lower() not in drop]
+
+
+def _is_aggregate_expr(expr: str) -> bool:
+    e = (expr or "").strip().lower()
+    return bool(re.match(r"^(sum|avg|min|max|count)\s*\(", e))
+
+
+def _default_agg_for_metric(name: str, col: str) -> str:
+    n = (name or "").lower()
+    if any(k in n for k in ["count", "num", "number", "rows"]):
+        return f"COUNT({col})"
+    if any(k in n for k in ["avg", "average", "mean"]):
+        return f"AVG({col})"
+    if any(k in n for k in ["min", "minimum", "lowest"]):
+        return f"MIN({col})"
+    if any(k in n for k in ["max", "maximum", "highest"]):
+        return f"MAX({col})"
+    return f"SUM({col})"
+
+
+def _sanitize_metrics_for_groupby(metrics: List[Dict[str, str]], dimensions: List[str]) -> List[Dict[str, str]]:
+    """If dimensions exist, ensure metrics are aggregated to avoid GROUP BY errors."""
+    if not dimensions:
+        return metrics
+
+    fixed: List[Dict[str, str]] = []
+    for m in metrics or []:
+        name = m.get("name", "")
+        expr = _strip_expr_alias(m.get("expr", ""))
+        expr = re.sub(r"\s+", " ", expr).strip()
+
+        if _is_aggregate_expr(expr) or re.search(r"(?i)\b(sum|avg|min|max|count)\s*\(", expr):
+            fixed.append({"name": name, "expr": expr})
+            continue
+
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", expr):
+            fixed.append({"name": name or expr, "expr": _default_agg_for_metric(name or expr, expr)})
+            continue
+
+        fixed.append({"name": name or "metric", "expr": f"AVG({expr})"})
+    return fixed
+
+
+def _prune_plan_to_tables(plan: QueryPlan, registry: SchemaRegistry, tables: List[str]) -> QueryPlan:
+    """Return a NEW plan pruned to columns available in the provided tables.
+
+    QueryPlan is a frozen dataclass, so we must not mutate it.
+    """
+    allowed_cols: set[str] = set()
+    for t in tables or []:
+        try:
+            allowed_cols.update(registry.columns_for_table(t))
+        except Exception:
+            continue
+
+    new_dimensions = [d for d in (plan.dimensions or []) if d in allowed_cols]
+
+    kept_filters: List[str] = []
+    for f in plan.filters or []:
+        ids = _extract_identifiers(f)
+        if ids and all(i in allowed_cols for i in ids):
+            kept_filters.append(f)
+        elif not ids:
+            kept_filters.append(f)
+    new_filters = kept_filters
+
+    kept_metrics: List[Dict[str, str]] = []
+    for m in plan.metrics or []:
+        expr = _strip_expr_alias(m.get("expr", ""))
+        if re.match(r"(?is)^\s*count\s*\(\s*\*\s*\)\s*$", expr):
+            kept_metrics.append(m)
+            continue
+        ids = _extract_identifiers(expr)
+        if ids and all(i in allowed_cols for i in ids):
+            kept_metrics.append(m)
+        elif not ids:
+            kept_metrics.append(m)
+    new_metrics = kept_metrics
+
+    return replace(plan, dimensions=new_dimensions, filters=new_filters, metrics=new_metrics)
+
+
+def _infer_tables_from_plan(registry: SchemaRegistry, plan: QueryPlan) -> List[str]:
+    """Infer candidate tables from referenced columns in metrics/dimensions/filters."""
+    wanted: set[str] = set(plan.dimensions or [])
+    for m in plan.metrics or []:
+        wanted.update(_extract_identifiers(m.get("expr", "")))
+    for f in plan.filters or []:
+        wanted.update(_extract_identifiers(f))
+
+    candidates: List[str] = []
+    for col in wanted:
+        for t in registry.tables():
+            try:
+                if col in registry.columns_for_table(t):
+                    candidates.append(t)
+            except Exception:
+                continue
+
+    seen = set()
+    ordered: List[str] = []
+    for t in (plan.tables or []) + candidates:
+        if t and t not in seen:
+            seen.add(t)
+            ordered.append(t)
+    return ordered
+
+
 def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     registry = session.registry
     db_type = (session.settings.db_type or "duckdb").strip().lower()
     dialect = dialect_for(db_type)
 
+    # QueryPlan is a frozen dataclass; never mutate it in-place.
     # Resolve plan tables to registry-canonical names (case-insensitive)
     tables = [session.canonical_table_name(t) for t in plan.tables]
+
+    # Athena runs against Glue catalog; the registry may include tables that are not loaded to Athena yet.
+    if db_type == "athena":
+        existing, missing = filter_existing_tables(session.settings, tables)
+        if missing:
+            log.warning("Some plan tables are missing in Athena/Glue; pruning", extra={"missing_tables": missing})
+        tables = existing
+        plan = _prune_plan_to_tables(plan, registry, tables)
+
+        if not tables:
+            inferred = _infer_tables_from_plan(registry, plan)
+            existing2, missing2 = filter_existing_tables(session.settings, inferred)
+            if existing2:
+                log.warning(
+                    "Recovered plan tables by inference",
+                    extra={"inferred_tables": existing2, "missing_tables": missing2},
+                )
+                tables = existing2
+                plan = _prune_plan_to_tables(plan, registry, tables)
+
+        if not tables:
+            raise AgentExecutionError(
+                "None of the planned/inferred tables exist in Athena/Glue catalog. Load/create the tables or adjust the query."
+            )
+
 
     # Choose driving table for correct LEFT JOIN semantics (important for filters on joined tables)
     base = _choose_base_table(plan, tables)
     if base and tables and base != tables[0]:
         tables = [base] + [t for t in tables if t != base]
+
+    # Ensure metrics are aggregated when dimensions exist (avoids GROUP BY errors)
+    plan = replace(plan, metrics=_sanitize_metrics_for_groupby(plan.metrics, plan.dimensions))
 
     # Build column->qualified reference map to prevent ambiguous column errors
     col_ref = _build_column_ref_map(registry, tables)

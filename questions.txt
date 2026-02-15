@@ -6,7 +6,7 @@ Here is the list of questions from user perspective that you can use in training
 
 
 
-# Cross-table aggregation with InstrumentID
+    # Cross-table aggregation with InstrumentID
     "How many unique instruments are tracked across all tables?"
 
    # Here the model was unable to identify what instrument type mean

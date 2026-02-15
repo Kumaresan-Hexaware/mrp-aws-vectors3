@@ -80,6 +80,43 @@ def rewrite_sql_for_athena(sql: str) -> str:
 # Backward-compatible alias (older callers may import the private name).
 _rewrite_sql_for_athena = rewrite_sql_for_athena
 
+# --- Glue Catalog helpers -------------------------------------------------------
+
+def filter_existing_tables(settings: Settings, tables: list[str]) -> tuple[list[str], list[str]]:
+    """Return (existing, missing) Athena/Glue tables for the configured database.
+
+    This uses AWS Glue Data Catalog (AwsDataCatalog) which backs Athena in most accounts.
+    If Glue permissions are missing, we conservatively assume all tables exist.
+    """
+    tbls = [t for t in (tables or []) if t]
+    if not tbls:
+        return [], []
+    if not settings.athena_database:
+        return tbls, []
+
+    try:
+        glue = boto3.client("glue", region_name=settings.aws_region or None)
+    except Exception:
+        return tbls, []
+
+    existing: list[str] = []
+    missing: list[str] = []
+    for t in tbls:
+        try:
+            glue.get_table(DatabaseName=settings.athena_database, Name=t)
+            existing.append(t)
+        except Exception as e:
+            # Glue raises EntityNotFoundException when a table doesn't exist.
+            # Some environments wrap it as a generic ClientError; handle both.
+            msg = str(e)
+            if "EntityNotFoundException" in msg or "entity not found" in msg.lower():
+                missing.append(t)
+            else:
+                # Unknown error (ex: AccessDenied) -> don't break execution; assume table exists.
+                existing.append(t)
+    return existing, missing
+
+
 
 @dataclass
 class AthenaExecutor:

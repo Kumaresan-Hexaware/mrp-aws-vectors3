@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Dict, Any, Optional
 import pandas as pd
 import os
@@ -130,6 +130,34 @@ class AgentOrchestrator:
         if "instrument" not in q:
             return plan
 
+        # If the user asks for an overall aggregate across all instruments,
+        # do NOT force InstrumentID (it would incorrectly GROUP BY instrument).
+        overall_phrases = [
+            "across all instruments",
+            "across all unique instruments",
+            "overall",
+            "grand total",
+            "total processing time",
+            "total time",
+            "average",
+            "avg",
+            "sum",
+        ]
+        per_item_phrases = [
+            "by instrument",
+            "per instrument",
+            "for each instrument",
+            "each instrument",
+            "list",
+            "show instruments",
+            "instrument level",
+            "instrument-wise",
+        ]
+
+        is_overall = any(p in q for p in overall_phrases) and not any(p in q for p in per_item_phrases)
+        if is_overall:
+            return plan
+
         # Only add InstrumentID if at least one selected table contains it.
         has_instrument = False
         for t in (plan.tables or []):
@@ -160,6 +188,25 @@ class AgentOrchestrator:
             chart=plan.chart,
             charts=plan.charts,
         )
+
+    def _repair_distribution_instrument_type(self, question: str, plan: 'QueryPlan') -> 'QueryPlan':
+        """Fix common LLM/heuristic mistakes for 'distribution of unique instruments by instrument type'.
+
+        QueryPlan is a frozen dataclass, so we must return a new instance via dataclasses.replace().
+        """
+        q = (question or '').lower()
+        if not (('instrument type' in q or 'instrumenttype' in q) and ('distribution' in q or 'breakdown' in q or 'by' in q)):
+            return plan
+        dims = list(plan.dimensions or [])
+        # Remove InstrumentID from dimensions to avoid GROUP BY InstrumentID, InstrumentTypeCode (wrong distribution).
+        new_dims = [
+            d for d in dims
+            if str(d).strip().lower() != 'instrumentid'
+            and not str(d).strip().lower().endswith('.instrumentid')
+        ]
+        if new_dims == dims:
+            return plan
+        return replace(plan, dimensions=new_dims)
 
     def _schema_state_path(self) -> Path:
         p = Path("data") / ".cache"
@@ -708,6 +755,7 @@ class AgentOrchestrator:
 
                 plan = validate_plan(self.registry, raw_plan)
                 plan = self._ensure_instrument_id_dimension(question, plan)
+                plan = self._repair_distribution_instrument_type(question, plan)
 
                 # Persist raw/validated plan (detailed mode only)
                 if not compact_mode:
@@ -1112,6 +1160,7 @@ class AgentOrchestrator:
                             "sql": getattr(session, "last_sql", None),
                         },
                     )
+
                 continue
 
         # All attempts exhausted
