@@ -22,40 +22,58 @@ def _sql_ident(name: str, dialect: SqlDialect) -> str:
     return dialect.ident(name)
 
 
-def build_join_sql(registry: SchemaRegistry, plan_tables: List[str], dialect: SqlDialect) -> Tuple[str, List[JoinRule]]:
-    """Build FROM + JOIN clause using registry join rules.
+def build_join_sql(registry: SchemaRegistry, plan_tables: List[str], dialect: str = "athena") -> Tuple[str, str]:
+    """Build a FROM/JOIN clause.
 
-    Note: registry.find_join_path() may return intermediate tables. We rely on plan_tables to already
-    include those intermediates (planning_tool expands them), but this function is robust either way.
+    The registry join graph is directional (left_table -> right_table). Some
+    table sets are only joinable if you pick the correct root. We therefore try
+    each candidate table as root (in the provided order) and pick the first that
+    yields a valid join path.
     """
-    # Defensive: de-duplicate plan_tables while preserving order. The planner may
-    # accidentally include the same table more than once when expanding joins.
-    uniq: List[str] = []
-    seen = set()
-    for t in plan_tables or []:
-        if t in seen:
+    if not plan_tables:
+        return "", ""
+
+    if len(plan_tables) == 1:
+        t = plan_tables[0]
+        return f'FROM { _sql_ident(t, dialect) } AS {t}', t
+
+    chosen_tables = plan_tables
+    join_path = None
+    last_err: Exception | None = None
+
+    for cand in plan_tables:
+        ordered = [cand] + [t for t in plan_tables if t != cand]
+        try:
+            join_path = registry.find_join_path(ordered)
+            chosen_tables = ordered
+            break
+        except Exception as e:
+            last_err = e
             continue
-        seen.add(t)
-        uniq.append(t)
-    plan_tables = uniq
 
-    join_path = registry.find_join_path(plan_tables)
-    root = plan_tables[0]
-    sql = f"FROM {_sql_ident(root, dialect)} AS {root}"
-    joined = {root}
-    for e in join_path:
-        if e.left_table not in joined:
-            raise SchemaValidationError("Join path order invalid; cannot execute joins safely.")
-        lt_alias = e.left_table
-        rt_alias = e.right_table
-        conds = []
-        for lk, rk in zip(e.left_keys, e.right_keys):
-            conds.append(f"{lt_alias}.{_sql_ident(lk, dialect)} = {rt_alias}.{_sql_ident(rk, dialect)}")
-        cond = " AND ".join(conds) if conds else "1=1"
-        sql += f" {e.join_type.upper()} JOIN {_sql_ident(rt_alias, dialect)} AS {rt_alias} ON {cond}"
-        joined.add(rt_alias)
-    return sql, join_path
+    if join_path is None:
+        # Re-raise the most informative error we saw.
+        if last_err:
+            raise last_err
+        raise SchemaValidationError(f"No registry join path can connect requested tables: {plan_tables}")
 
+    root = chosen_tables[0]
+
+    # Start FROM root
+    sql = f'FROM { _sql_ident(root, dialect) } AS {root}'
+
+    # Then apply join rules along the join_path
+    for jr in join_path:
+        join_type = jr.join_type.upper()
+        right = jr.right_table
+        on_pairs = []
+        for lk, rk in zip(jr.left_keys, jr.right_keys):
+            on_pairs.append(
+                f"{jr.left_table}.{_sql_ident(lk, dialect)} = {right}.{_sql_ident(rk, dialect)}"
+            )
+        sql += f"\n{join_type} JOIN { _sql_ident(right, dialect) } AS {right} ON " + " AND ".join(on_pairs)
+
+    return sql, root
 
 def _strip_expr_alias(expr: str) -> str:
     # Remove any accidental "AS alias" the planner might include inside expr.
@@ -241,19 +259,19 @@ def _compile_sql(
     # Special case: "average X across all unique instruments".
     # Meaning: compute per-InstrumentID value first, then average across instruments
     # so each instrument contributes once (avoids row-weighting bias).
+    #
+    # If there *are* dimensions (e.g., "... by instrument types"), we compute:
+    #   AVG( per_instrument_metric ) GROUP BY <dimensions excluding InstrumentID>
+    #
     try:
         hints = getattr(plan, "hints", None) or {}
     except Exception:
         hints = {}
-    if (
-        hints.get("unique_entity_avg") == "InstrumentID"
-        and tables
-        and (not (plan.dimensions or []))
-        and (plan.metrics or [])
-        and len(plan.metrics) == 1
-    ):
+
+    if hints.get("unique_entity_avg") == "InstrumentID" and tables and (plan.metrics or []) and len(plan.metrics) == 1:
         metric = (plan.metrics or [])[0]
         metric_name = str(metric.get("name", "metric"))
+
         # Build the inner per-instrument aggregate using the same metric compiler
         # so we get:
         #  - proper column qualification (alias."col")
@@ -271,24 +289,57 @@ def _compile_sql(
             inst_alias, inst_col = col_ref[inst].split(".", 1)
             inst_sql = f"{inst_alias}.{_sql_ident(inst_col, dialect)}"
         else:
-            # Fallback: assume unqualified InstrumentID is valid.
             inst_sql = _sql_ident(inst, dialect)
+
+        # Dimensions (drop InstrumentID if it accidentally appears alongside other dims).
+        dims = list(plan.dimensions or [])
+        dims_clean = [
+            d for d in dims
+            if str(d).strip().lower() not in ("instrumentid",) and not str(d).strip().lower().endswith(".instrumentid")
+        ]
+
+        dim_sqls = []
+        dim_out = []
+        for d in dims_clean:
+            d0 = str(d).strip()
+            key = d0.split(".")[-1]
+            if key in col_ref:
+                a, c = col_ref[key].split(".", 1)
+                dim_sqls.append(f"{a}.{_sql_ident(c, dialect)}")
+                dim_out.append(_sql_ident(key, dialect))
+            else:
+                # Fallback: try to use the raw dimension token as-is
+                dim_sqls.append(_sql_ident(d0, dialect))
+                dim_out.append(_sql_ident(key, dialect))
 
         join_sql, _ = build_join_sql(registry, tables, dialect)
         where_sql = _filters_sql(plan.filters, col_ref, dialect, registry=registry)
 
-        # Inner query: per-instrument aggregation
-        # Outer query: average across instruments (one row)
+        inner_select = [f"{inst_sql} AS {_sql_ident(inst, dialect)}"]
+        inner_select += [f"{s} AS {o}" for s, o in zip(dim_sqls, dim_out)]
+        inner_select.append(inst_metric_sql)
+
+        inner_group_by = [inst_sql] + dim_sqls
+
+        if dim_sqls:
+            outer_select = ", ".join(dim_out + [f"AVG({_sql_ident('_inst_value', dialect)}) AS {_sql_ident(metric_name, dialect)}"])
+            outer_group_by = ", ".join(dim_out)
+        else:
+            outer_select = f"AVG({_sql_ident('_inst_value', dialect)}) AS {_sql_ident(metric_name, dialect)}"
+            outer_group_by = ""
+
+        outer_group_sql = f"\nGROUP BY {outer_group_by}" if outer_group_by else ""
+
         return f"""WITH _per_inst AS (
-    SELECT {inst_sql} AS {_sql_ident(inst, dialect)}, {inst_metric_sql}
+    SELECT {', '.join(inner_select)}
     {join_sql}
     {where_sql}
-    GROUP BY {inst_sql}
+    GROUP BY {', '.join(inner_group_by)}
 )
-SELECT AVG({_sql_ident('_inst_value', dialect)}) AS {_sql_ident(metric_name, dialect)}
-FROM _per_inst""".strip()
+SELECT {outer_select}
+FROM _per_inst{outer_group_sql}""".strip()
 
-    # Special case: overall distinct count across multiple tables with no dimensions.
+# Special case: overall distinct count across multiple tables with no dimensions.
     # Example: COUNT(DISTINCT InstrumentID) across all tables should NOT pick a single base table.
     if tables and len(tables) > 1 and (not (plan.dimensions or [])) and (plan.metrics or []) and len(plan.metrics) == 1:
         expr0 = str((plan.metrics or [])[0].get("expr", "")).strip()
@@ -449,12 +500,10 @@ def _filters_sql(
             continue
 
         # Simple binary comparisons
-        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*(<>|!=|>=|<=|=|>|<)\s*(.+)$', f)
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*(=|!=|>=|<=|>|<)\s*(.+)$', f)
         if not m:
             continue
         col_tok, op, val = m.group(1), m.group(2), m.group(3).strip()
-        if op == '<>':
-            op = '!='  # normalize SQL not-equals
 
         # Qualify ambiguous columns if possible (or preserve explicit table qualifier)
         if "." in col_tok:

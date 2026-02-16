@@ -964,6 +964,7 @@ tables:
         description: Instrument type code (security/instrument classification used for reporting and grouping).
         aliases:
         - instrument type
+        - instrument types
         - InstrumentType
         - instrument type code
         - security type
@@ -2532,6 +2533,11 @@ tables:
         - CPR3Month
         - cpr3_month
         - cpr3-month
+        - three month cpr
+        - ThreeMonthCPR
+        - threeMonthCPR
+        - 3MonthCPR
+
       CPRLongTerm:
         type: float
         description: Long-term conditional prepayment rate (CPR) assumption/output.

@@ -158,8 +158,9 @@ class AgentOrchestrator:
             "avg",
             "sum",
         ]
+        by_instr_type = ("instrument type" in q or "instrument types" in q or "instrumenttype" in q)
+
         per_item_phrases = [
-            "by instrument",
             "per instrument",
             "for each instrument",
             "each instrument",
@@ -168,6 +169,12 @@ class AgentOrchestrator:
             "instrument level",
             "instrument-wise",
         ]
+
+        # 'by instrument' is ambiguous and would incorrectly trigger for
+        # questions like '... by instrument types'. Only treat it as per-instrument
+        # when we are NOT asking for instrument-type breakdowns.
+        if not by_instr_type:
+            per_item_phrases.insert(0, "by instrument")
 
         is_overall = any(p in q for p in overall_phrases) and not any(p in q for p in per_item_phrases)
         if is_overall:
@@ -286,7 +293,7 @@ class AgentOrchestrator:
         # Ensure sort desc by the count metric.
         sort = list(plan.sort or [])
         if not sort:
-            sort = [{"by": str(metrics[0].get("name", "Count")), "dir": "desc"}]
+            sort = [{"by": str(metrics[0].get("name", "Count")), "desc": True}]
 
         return QueryPlan(
             mode=plan.mode,
@@ -321,15 +328,15 @@ class AgentOrchestrator:
             return plan
         if "across all" not in q and "across" not in q:
             return plan
-
-        # If the user clearly asks for a breakdown, do not enable this.
-        breakdown_markers = [" by ", " per ", " for each ", " grouped ", " breakdown", " distribution"]
-        if any(m in q for m in breakdown_markers):
+        # If the plan is a per-instrument listing (dimensions are only InstrumentID),
+        # do NOT enable this hint. Otherwise (e.g., breakdown by InstrumentTypeCode),
+        # we still want unique-instrument semantics.
+        dims = list(plan.dimensions or [])
+        dims_non_id = [d for d in dims if str(d).strip().lower() not in ("instrumentid",) and not str(d).strip().lower().endswith(".instrumentid")]
+        if dims and not dims_non_id:
             return plan
 
-        # Only for single-metric AVG(...) plans with no dimensions.
-        if (plan.dimensions or []):
-            return plan
+        # Only for single-metric AVG(...) plans.
         if not plan.metrics or len(plan.metrics) != 1:
             return plan
         expr0 = str((plan.metrics or [])[0].get("expr", "")).strip().lower()
@@ -341,25 +348,27 @@ class AgentOrchestrator:
         hints["unique_entity_avg"] = "InstrumentID"
         return replace(plan, hints=hints)
 
-    def _repair_distribution_instrument_type(self, question: str, plan: 'QueryPlan') -> 'QueryPlan':
-        """Fix common LLM/heuristic mistakes for 'distribution of unique instruments by instrument type'.
-
-        QueryPlan is a frozen dataclass, so we must return a new instance via dataclasses.replace().
-        """
-        q = (question or '').lower()
-        if not (('instrument type' in q or 'instrumenttype' in q) and ('distribution' in q or 'breakdown' in q or 'by' in q)):
+    def _repair_distribution_instrument_type(self, question: str, plan: QueryPlan) -> QueryPlan:
+        q = (question or "").lower()
+        if not any(k in q for k in ["instrument type", "instrument types", "instrumenttype", "instrument_type", "security type"]):
             return plan
+        if not any(k in q for k in ["distribution", "breakdown", "by", "group"]):
+            return plan
+
+        # Drop InstrumentID from dimensions when user wants distribution by type.
         dims = list(plan.dimensions or [])
-        # Remove InstrumentID from dimensions to avoid GROUP BY InstrumentID, InstrumentTypeCode (wrong distribution).
-        new_dims = [
-            d for d in dims
-            if str(d).strip().lower() != 'instrumentid'
-            and not str(d).strip().lower().endswith('.instrumentid')
-        ]
-        if new_dims == dims:
-            return plan
-        return replace(plan, dimensions=new_dims)
+        dims = [d for d in dims if str(d).strip().lower() != 'instrumentid']
 
+        # If the planner forgot the actual type column, inject it.
+        if "InstrumentTypeCode" not in dims:
+            dims.append("InstrumentTypeCode")
+
+        # Ensure the owning table is present so execution can join for the dimension.
+        tables = list(plan.tables or [])
+        if "pvr00400" not in tables:
+            tables.append("pvr00400")
+
+        return replace(plan, dimensions=dims, tables=list(dict.fromkeys(tables)))
     def _repair_overall_aggregate_shape(self, question: str, plan: QueryPlan) -> QueryPlan:
         """Remove accidental GROUP BY dimensions for overall aggregate questions.
 
