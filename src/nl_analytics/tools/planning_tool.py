@@ -255,6 +255,67 @@ def _expr_tokens(expr: str) -> Set[str]:
     return set(m.group(0) for m in _IDENT_RE.finditer(expr or ""))
 
 
+_NUM_WORDS = {
+    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+    "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+}
+
+def _normalize_ident_token(tok: str) -> str:
+    """Normalize identifier-like tokens for alias resolution (lowercase, alnum only, number words -> digits)."""
+    t = (tok or "").strip().lower()
+    if not t:
+        return ""
+    # Split camel case-ish boundaries into words (ThreeMonthCPR -> three month cpr)
+    t2 = re.sub(r"([a-z])([A-Z])", r"\1 \2", tok).lower()
+    parts = re.findall(r"[a-z]+|\d+", t2)
+    norm_parts = []
+    for p in parts:
+        norm_parts.append(_NUM_WORDS.get(p, p))
+    return "".join(norm_parts)
+
+def _resolve_unknown_ident(tok: str, col_map: Dict[str, str]) -> Optional[str]:
+    """Best-effort resolve unknown metric identifiers to a known column using heuristics.
+    Returns canonical column name (without table prefix) or None.
+    """
+    if not tok:
+        return None
+    n = _normalize_ident_token(tok)
+    if not n:
+        return None
+
+    # Direct contains match: pick the shortest key that contains required parts
+    required = set()
+    # Extract useful signals
+    if "cpr" in n:
+        required.add("cpr")
+    if "month" in n:
+        required.add("month")
+    # Number: 3 etc
+    for d in ("1","2","3","4","5","6","7","8","9","10","12"):
+        if d in n:
+            required.add(d)
+
+    # If no required signals, don't guess
+    if not required:
+        return None
+
+    candidates = []
+    for k, v in col_map.items():
+        kk = "".join(ch for ch in (k or "").lower() if ch.isalnum())
+        if all(req in kk for req in required):
+            candidates.append((len(kk), kk, v))
+
+    if not candidates:
+        return None
+
+    candidates.sort()
+    # If top two are different columns with similar score, avoid guessing
+    top = candidates[0][2]
+    if len(candidates) > 1 and candidates[1][2] != top and candidates[1][0] == candidates[0][0]:
+        return None
+    return top
+
+
 def _expr_contains_agg(expr: str) -> bool:
     if not expr:
         return False
@@ -661,6 +722,9 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
             )
 
         # Validate identifiers used in the expression are either known columns, allowed funcs, or SQL keywords.
+        # If the model invents a column identifier (e.g., ThreeMonthCPR), try to resolve it to a known column
+        # using table-specific alias maps and light heuristics, then rewrite the expression to the canonical name.
+        _repl: Dict[str, str] = {}
         for tok in _expr_tokens(expr_canon):
             t = tok.lower()
             if t in allowed_idents:
@@ -671,8 +735,19 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
             n = "".join(ch for ch in t if ch.isalnum())
             if n in col_map:
                 continue
+
+            resolved = _resolve_unknown_ident(tok, col_map)
+            if resolved:
+                # Remember replacement and also allow token for validation
+                _repl[tok] = resolved
+                continue
+
             # If token is inside a string literal, _expr_tokens already strips them.
             raise SchemaValidationError(f"Unknown identifier in metric expression: {tok}")
+
+        # Apply replacements (word-boundary safe)
+        for bad, good in _repl.items():
+            expr_canon = re.sub(rf"\b{re.escape(bad)}\b", good, expr_canon)
 
         metrics.append({"name": name, "expr": expr_canon})
 
@@ -714,7 +789,12 @@ def validate_plan(registry: SchemaRegistry, plan: Dict[str, Any]) -> QueryPlan:
     filters_in = list(plan.get("filters") or [])
     filters: List[str] = []
     for f in filters_in:
-        parts = str(f).replace("==", "=").split()
+        # Normalize common planner variations before tokenization.
+        # Some models emit SQL-style not-equal as '<>' (valid SQL), while our
+        # execution filter renderer expects '!='. Normalize here to keep the
+        # plan consistent across dialects.
+        f_norm = str(f).replace("==", "=").replace("<>", "!=")
+        parts = f_norm.split()
         if not parts:
             continue
         col = _canonicalize_col(parts[0].strip(), all_cols, col_map)

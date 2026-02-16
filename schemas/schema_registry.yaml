@@ -964,6 +964,7 @@ tables:
         description: Instrument type code (security/instrument classification used for reporting and grouping).
         aliases:
         - instrument type
+        - InstrumentType
         - instrument type code
         - security type
         - security type code
@@ -2523,6 +2524,7 @@ tables:
         type: float
         description: Conditional prepayment rate (CPR) - 3 month horizon.
         aliases:
+        - 3 month CPR
         - cpr 3 month
         - 3m cpr
         - cpr3m

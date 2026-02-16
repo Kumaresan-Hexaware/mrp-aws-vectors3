@@ -449,10 +449,12 @@ def _filters_sql(
             continue
 
         # Simple binary comparisons
-        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*(=|!=|>=|<=|>|<)\s*(.+)$', f)
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*(<>|!=|>=|<=|=|>|<)\s*(.+)$', f)
         if not m:
             continue
         col_tok, op, val = m.group(1), m.group(2), m.group(3).strip()
+        if op == '<>':
+            op = '!='  # normalize SQL not-equals
 
         # Qualify ambiguous columns if possible (or preserve explicit table qualifier)
         if "." in col_tok:

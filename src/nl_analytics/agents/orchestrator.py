@@ -130,6 +130,21 @@ class AgentOrchestrator:
         if "instrument" not in q:
             return plan
 
+        # If the user is asking for a *predominant/most-common* attribute (e.g. most used model),
+        # do NOT force InstrumentID into dimensions. Doing so would incorrectly GROUP BY
+        # InstrumentID and turn frequency queries into per-instrument rows.
+        predominant_markers = [
+            "predominant",
+            "most common",
+            "most frequent",
+            "most used",
+            "most popular",
+            "top ",
+            "highest",
+        ]
+        if any(m in q for m in predominant_markers):
+            return plan
+
         # If the user asks for an overall aggregate across all instruments,
         # do NOT force InstrumentID (it would incorrectly GROUP BY instrument).
         overall_phrases = [
@@ -185,6 +200,102 @@ class AgentOrchestrator:
             filters=list(plan.filters or []),
             limit=int(plan.limit),
             sort=list(plan.sort or []) if plan.sort is not None else None,
+            chart=plan.chart,
+            charts=plan.charts,
+            hints=getattr(plan, "hints", None),
+        )
+
+    def _repair_predominant_prepayment_model(self, question: str, plan: QueryPlan) -> QueryPlan:
+        """Repair plans for questions like:
+        "which is the most predominant prepayment model used ... (PrepaymentModelUsed)".
+
+        Common planner failure modes:
+          1) Adds InstrumentID as a dimension -> GROUP BY InstrumentID, PrepaymentModelUsed
+             which makes COUNT(DISTINCT InstrumentID) ~ 1 per row.
+          2) Returns all groups (limit 5000) instead of the single top value.
+          3) Includes NULL / 'None' / blank string values.
+
+        This repair is intentionally narrow and should not affect other query types.
+        """
+        q = (question or "").lower()
+        if not ("prepayment" in q and "model" in q):
+            return plan
+        predominant_markers = [
+            "predominant",
+            "most common",
+            "most frequent",
+            "most used",
+            "most popular",
+            "top ",
+            "highest",
+        ]
+        if not any(m in q for m in predominant_markers):
+            return plan
+
+        # Only apply when the plan is a simple count-style report.
+        metrics = list(plan.metrics or [])
+        if not metrics:
+            return plan
+
+        # Ensure we are counting instruments (distinct InstrumentID preferred).
+        # If planner used COUNT(*) we keep it, but we add InstrumentID IS NOT NULL
+        # so it matches "used in the instrument analytics output" semantics.
+        metric_expr = str(metrics[0].get("expr", "")).lower()
+        is_count_metric = metric_expr.startswith("count(")
+        if not is_count_metric:
+            return plan
+
+        # Remove InstrumentID from dimensions if present; keep the categorical attribute.
+        dims = list(plan.dimensions or [])
+        dims_l = [str(d).lower() for d in dims]
+        # Identify prepayment model column (canonicalized by planning_tool)
+        model_dim = None
+        for d in dims:
+            if str(d).lower() in ("prepaymentmodelused", "prepayment_model_used"):
+                model_dim = d
+                break
+        if model_dim is None:
+            # If the planner used an alias that canonicalized differently, fall back to
+            # any dimension containing 'prepayment' and 'model'.
+            for d in dims:
+                dl = str(d).lower()
+                if "prepayment" in dl and "model" in dl:
+                    model_dim = d
+                    break
+        if model_dim is not None:
+            dims = [d for d in dims if str(d).lower() != "instrumentid"]
+            dims = [model_dim]
+
+        # Force top-1 output for "most predominant" intent.
+        limit = 1
+
+        # Add robust exclusion filters (do not rely on LLM to do this correctly).
+        # Keep them simple so _filters_sql can render them.
+        filters = list(plan.filters or [])
+        # Always exclude NULLs for the attribute and instruments.
+        needed = [
+            "InstrumentID IS NOT NULL",
+            f"{model_dim or 'PrepaymentModelUsed'} IS NOT NULL",
+            f"{model_dim or 'PrepaymentModelUsed'} != 'None'",
+            f"{model_dim or 'PrepaymentModelUsed'} != ''",
+        ]
+        for f in needed:
+            if f not in filters:
+                filters.append(f)
+
+        # Ensure sort desc by the count metric.
+        sort = list(plan.sort or [])
+        if not sort:
+            sort = [{"by": str(metrics[0].get("name", "Count")), "dir": "desc"}]
+
+        return QueryPlan(
+            mode=plan.mode,
+            tables=list(plan.tables or []),
+            metrics=metrics,
+            dimensions=list(dict.fromkeys(dims)),
+            filters=filters,
+            limit=limit,
+            sort=sort,
             chart=plan.chart,
             charts=plan.charts,
             hints=getattr(plan, "hints", None),
@@ -894,6 +1005,7 @@ class AgentOrchestrator:
                 plan = self._ensure_instrument_id_dimension(question, plan)
                 plan = self._repair_distribution_instrument_type(question, plan)
                 plan = self._repair_overall_aggregate_shape(question, plan)
+                plan = self._repair_predominant_prepayment_model(question, plan)
                 plan = self._expand_tables_for_across_all_tables(question, plan)
                 plan = self._mark_unique_instrument_avg(question, plan)
 

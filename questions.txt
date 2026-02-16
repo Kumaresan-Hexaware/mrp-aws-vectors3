@@ -32,7 +32,45 @@ Here is the list of questions from user perspective that you can use in training
 
     # Data dictionary for prepaymentModelUsed needs information
     "which is the most predominant prepayment model used in the instrument analytics output ? Look at the attribute prepaymentModelUsed"
+********************
+2026-02-15 17:09:53,664 | INFO | agents.orchestrator | User query received
+2026-02-15 17:09:56,777 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:09:56,872 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:09:59,126 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01600",\n    "pvr00500",\n    "pvr01400",\n    "pvr01200",\n    "pvr01300",\n    "pvr01100",\n    "pvr01900",\n    "
+pvr00400"\n  ],\n  "metrics": [\n    {\n      "name": "Count",\n      "expr": "COUNT(*)"\n    }\n  ],\n  "dimensions": [\n    "pvr01600.InstrumentID",\n    "'
+2026-02-15 17:09:59,265 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:09:59,265 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:09:59,265 | INFO | agents.orchestrator | USER QUESTION ::: which is the most predominant prepayment model used in the instrument analytics output ?
+2026-02-15 17:09:59,509 | INFO | tools.execution | ATHENA SQL :::
+SELECT pvr01600."InstrumentID" AS "InstrumentID", COUNT(*) AS "Count"
+2026-02-15 17:09:59,509 | INFO | tools.execution | Executing SQL
+2026-02-15 17:09:59,526 | INFO | db.athena | ATHENA QUERY :::
+SELECT pvr01600."InstrumentID" AS "InstrumentID", COUNT(*) AS "Count"
+    FROM "pvr01600" AS pvr01600
 
+    GROUP BY pvr01600."InstrumentID"
+
+    LIMIT 5000
+2026-02-15 17:10:01,760 | INFO | agents.orchestrator | Final confidence computed
+2026-02-15 17:10:01,844 | INFO | export.exporter | Exported CSV
+
+**************************
     "what was total processing time taken across all instruments ?"
 
 
@@ -40,11 +78,530 @@ Here is the list of questions from user perspective that you can use in training
    # JOIN working - query looks good
     "what is the average 3 month CPR across all unique instruments by instrument types ? hint: use instrumentID from portfolio instrument table (PVR00400) to be same as instrumenID from instrument analytics table (PVR00600)",
 
+****************************
+
+2026-02-15 17:12:02,877 | INFO | agents.orchestrator | User query received
+2026-02-15 17:12:05,638 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:12:05,698 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:12:07,095 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01600",\n    "pvr00500",\n    "pvr01400",\n    "pvr01200",\n    "pvr01300",\n    "pvr01100",\n    "pvr01900",\n    "
+pvr00400"\n  ],\n  "metrics": [\n    {\n      "name": "Average 3 Month CPR",\n      "expr": "AVG(pvr01600.ThreeMonthCPR)"\n    }\n  ],\n  "dimensions": [\n '
+2026-02-15 17:12:07,095 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=what is the average 3 month CPR across all unique instruments by instrument types ? | error=No registry join path can connect
+requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['pvr00400']
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 519, in validate_plan
+    join_rules = registry.find_join_path(tables)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\schema\registry.py", line 287, in find_join_path
+    raise SchemaValidationError(
+nl_analytics.exceptions.errors.SchemaValidationError: No registry join path can connect requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['p
+vr00400']
+2026-02-15 17:12:09,714 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:12:09,777 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:12:13,382 | INFO | bedrock.client | Claude text head: 'Here is a JSON plan that addresses the given question:\n\n{\n  "mode": "report",\n  "tables": [\n    "pvr00400",\n    "pvr00500",\n    "pvr01100",\n    "pvr01200",
+\n    "pvr01300",\n    "pvr01400",\n    "pvr01600",\n    "pvr01900"\n  ],\n  "metrics": [\n    {\n      "name": "Avg 3 Month CPR",\n      "expr": "AVG(pvr'
+2026-02-15 17:12:13,412 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=what is the average 3 month CPR across all unique instruments by instrument types ? | error=No registry join path can connect
+requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['pvr00500']
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 519, in validate_plan
+    join_rules = registry.find_join_path(tables)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\schema\registry.py", line 287, in find_join_path
+    raise SchemaValidationError(
+nl_analytics.exceptions.errors.SchemaValidationError: No registry join path can connect requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['p
+vr00500']
+2026-02-15 17:12:15,915 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:12:15,994 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:12:17,661 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr00400",\n    "pvr00500",\n    "pvr01100",\n    "pvr01200",\n    "pvr01300",\n    "pvr01400",\n    "pvr01600",\n    "
+pvr01900"\n  ],\n  "metrics": [\n    {\n      "name": "avg_3m_cpr",\n      "expr": "AVG(pvr00400.ThreeMonthCPR)"\n    }\n  ],\n  "dimensions": [\n    "pvr00'
+2026-02-15 17:12:17,692 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=what is the average 3 month CPR across all unique instruments by instrument types ? | error=Unknown identifier in metric expre
+ssion: ThreeMonthCPR
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 672, in validate_plan
+    raise SchemaValidationError(f"Unknown identifier in metric expression: {tok}")
+nl_analytics.exceptions.errors.SchemaValidationError: Unknown identifier in metric expression: ThreeMonthCPR
+
+***************************
     # Portfolio comparison
     "Which Portfolio ID has the highest total Original Amount across all PVR tables?",
 
+    2026-02-15 17:12:02,877 | INFO | agents.orchestrator | User query received
+2026-02-15 17:12:05,638 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:12:05,698 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:12:07,095 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01600",\n    "pvr00500",\n    "pvr01400",\n    "pvr01200",\n    "pvr01300",\n    "pvr01100",\n    "pvr01900",\n    "
+pvr00400"\n  ],\n  "metrics": [\n    {\n      "name": "Average 3 Month CPR",\n      "expr": "AVG(pvr01600.ThreeMonthCPR)"\n    }\n  ],\n  "dimensions": [\n '
+2026-02-15 17:12:07,095 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=what is the average 3 month CPR across all unique instruments by instrument types ? | error=No registry join path can connect
+requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['pvr00400']
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 519, in validate_plan
+    join_rules = registry.find_join_path(tables)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\schema\registry.py", line 287, in find_join_path
+    raise SchemaValidationError(
+nl_analytics.exceptions.errors.SchemaValidationError: No registry join path can connect requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['p
+vr00400']
+2026-02-15 17:12:09,714 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:12:09,777 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:12:13,382 | INFO | bedrock.client | Claude text head: 'Here is a JSON plan that addresses the given question:\n\n{\n  "mode": "report",\n  "tables": [\n    "pvr00400",\n    "pvr00500",\n    "pvr01100",\n    "pvr01200",
+\n    "pvr01300",\n    "pvr01400",\n    "pvr01600",\n    "pvr01900"\n  ],\n  "metrics": [\n    {\n      "name": "Avg 3 Month CPR",\n      "expr": "AVG(pvr'
+2026-02-15 17:12:13,412 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=what is the average 3 month CPR across all unique instruments by instrument types ? | error=No registry join path can connect
+requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['pvr00500']
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 519, in validate_plan
+    join_rules = registry.find_join_path(tables)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\schema\registry.py", line 287, in find_join_path
+    raise SchemaValidationError(
+nl_analytics.exceptions.errors.SchemaValidationError: No registry join path can connect requested tables: ['pvr00400', 'pvr00500', 'pvr00600', 'pvr01100', 'pvr01200', 'pvr01300', 'pvr01400', 'pvr01500', 'pvr01600', 'pvr01900'] + ['p
+vr00500']
+2026-02-15 17:12:15,915 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:12:15,994 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:12:17,661 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr00400",\n    "pvr00500",\n    "pvr01100",\n    "pvr01200",\n    "pvr01300",\n    "pvr01400",\n    "pvr01600",\n    "
+pvr01900"\n  ],\n  "metrics": [\n    {\n      "name": "avg_3m_cpr",\n      "expr": "AVG(pvr00400.ThreeMonthCPR)"\n    }\n  ],\n  "dimensions": [\n    "pvr00'
+2026-02-15 17:12:17,692 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=what is the average 3 month CPR across all unique instruments by instrument types ? | error=Unknown identifier in metric expre
+ssion: ThreeMonthCPR
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 672, in validate_plan
+    raise SchemaValidationError(f"Unknown identifier in metric expression: {tok}")
+nl_analytics.exceptions.errors.SchemaValidationError: Unknown identifier in metric expression: ThreeMonthCPR
+2026-02-15 17:13:34,564 | INFO | agents.orchestrator | User query received
+2026-02-15 17:13:37,132 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.8705
+01. score=0.8544 kind=column col=pvr01900.OverTimePremiumPaymentAmount | COLUMN pvr01900.OverTimePremiumPaymentAmount (float): Over time premium payment amount. | aliases: premium payment, premium payments, premium amount, premium p
+ayment amount, amt, v
+02. score=0.8036 kind=column col=pvr01200.InvestorDelay | COLUMN pvr01200.InvestorDelay (string): Investor delay. | aliases: investor delay, InvestorDelay, investor_delay, investor-delay, id
+03. score=0.7870 kind=column col=pvr01600.PrinNtnlPaydownAmount | COLUMN pvr01600.PrinNtnlPaydownAmount (float): Prin ntnl paydown amount. | aliases: principal paydown, principal paydowns, notional paydown, paydown amount, principal
+ paydown amoun
+04. score=0.8653 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8649 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8636 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:13:37,201 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:13:39,199 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01900",\n    "pvr01200",\n    "pvr01600",\n    "pvr00500",\n    "pvr00400",\n    "pvr01400"\n  ],\n  "metrics": [\n
+   {\n      "name": "total_original_amount",\n      "expr": "SUM(pvr01900.OverTimePremiumPaymentAmount + pvr01600.PrinNtnlPaydownAmount)"\n    }\n  ],\n '
+2026-02-15 17:13:39,316 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:39,316 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:39,316 | INFO | agents.orchestrator | USER QUESTION ::: Which Portfolio ID has the highest total Original Amount across all PVR tables?
+2026-02-15 17:13:40,351 | WARNING | tools.execution | Some plan tables are missing in Athena/Glue; pruning
+2026-02-15 17:13:40,366 | INFO | tools.execution | ATHENA SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:40,366 | INFO | tools.execution | POSTGRES SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:40,383 | INFO | tools.execution | Executing SQL
+2026-02-15 17:13:40,402 | INFO | db.athena | ATHENA QUERY :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:40,565 | WARNING | agents.orchestrator | Attempt failed; retrying | question=Which Portfolio ID has the highest total Original Amount across all PVR tables? | error=An error occurred (InvalidRequestException) when c
+alling the StartQueryExecution operation: line 2:5: mismatched input 'FROM'. Expecting: '*', 'ALL', 'DISTINCT', <expression>
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 928, in run
+    df = execute_plan(session, plan)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\execution_tool.py", line 723, in execute_plan
+    return AthenaExecutor(session.settings).execute(sql)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\db\athena.py", line 180, in execute
+    qid = ath.start_query_execution(**start_args)["QueryExecutionId"]
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.errorfactory.InvalidRequestException: An error occurred (InvalidRequestException) when calling the StartQueryExecution operation: line 2:5: mismatched input 'FROM'. Expecting: '*', 'ALL', 'DISTINCT', <expression>
+2026-02-15 17:13:43,165 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.8705
+01. score=0.8544 kind=column col=pvr01900.OverTimePremiumPaymentAmount | COLUMN pvr01900.OverTimePremiumPaymentAmount (float): Over time premium payment amount. | aliases: premium payment, premium payments, premium amount, premium p
+ayment amount, amt, v
+02. score=0.8036 kind=column col=pvr01200.InvestorDelay | COLUMN pvr01200.InvestorDelay (string): Investor delay. | aliases: investor delay, InvestorDelay, investor_delay, investor-delay, id
+03. score=0.7870 kind=column col=pvr01600.PrinNtnlPaydownAmount | COLUMN pvr01600.PrinNtnlPaydownAmount (float): Prin ntnl paydown amount. | aliases: principal paydown, principal paydowns, notional paydown, paydown amount, principal
+ paydown amoun
+04. score=0.8653 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8649 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8636 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:13:43,232 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:13:45,083 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01900",\n    "pvr01200",\n    "pvr01600",\n    "pvr00500",\n    "pvr00400",\n    "pvr01400"\n  ],\n  "metrics": [\n
+   {\n      "name": "total_original_amount",\n      "expr": "SUM(pvr01900.OverTimePremiumPaymentAmount + pvr01600.PrinNtnlPaydownAmount)"\n    }\n  ],\n '
+2026-02-15 17:13:45,181 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:45,181 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:45,181 | INFO | agents.orchestrator | USER QUESTION ::: Which Portfolio ID has the highest total Original Amount across all PVR tables?
+2026-02-15 17:13:45,549 | WARNING | tools.execution | Some plan tables are missing in Athena/Glue; pruning
+2026-02-15 17:13:45,549 | INFO | tools.execution | ATHENA SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:45,549 | INFO | tools.execution | POSTGRES SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:45,565 | INFO | tools.execution | Executing SQL
+2026-02-15 17:13:45,582 | INFO | db.athena | ATHENA QUERY :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:45,698 | WARNING | agents.orchestrator | Attempt failed; retrying | question=Which Portfolio ID has the highest total Original Amount across all PVR tables? | error=An error occurred (InvalidRequestException) when c
+alling the StartQueryExecution operation: line 2:5: mismatched input 'FROM'. Expecting: '*', 'ALL', 'DISTINCT', <expression>
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 928, in run
+    df = execute_plan(session, plan)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\execution_tool.py", line 723, in execute_plan
+    return AthenaExecutor(session.settings).execute(sql)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\db\athena.py", line 180, in execute
+    qid = ath.start_query_execution(**start_args)["QueryExecutionId"]
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.errorfactory.InvalidRequestException: An error occurred (InvalidRequestException) when calling the StartQueryExecution operation: line 2:5: mismatched input 'FROM'. Expecting: '*', 'ALL', 'DISTINCT', <expression>
+2026-02-15 17:13:48,082 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.8705
+01. score=0.8544 kind=column col=pvr01900.OverTimePremiumPaymentAmount | COLUMN pvr01900.OverTimePremiumPaymentAmount (float): Over time premium payment amount. | aliases: premium payment, premium payments, premium amount, premium p
+ayment amount, amt, v
+02. score=0.8036 kind=column col=pvr01200.InvestorDelay | COLUMN pvr01200.InvestorDelay (string): Investor delay. | aliases: investor delay, InvestorDelay, investor_delay, investor-delay, id
+03. score=0.7870 kind=column col=pvr01600.PrinNtnlPaydownAmount | COLUMN pvr01600.PrinNtnlPaydownAmount (float): Prin ntnl paydown amount. | aliases: principal paydown, principal paydowns, notional paydown, paydown amount, principal
+ paydown amoun
+04. score=0.8653 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8649 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8636 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:13:48,148 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:13:50,015 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01900",\n    "pvr01200",\n    "pvr01600",\n    "pvr00500",\n    "pvr00400",\n    "pvr01400"\n  ],\n  "metrics": [\n
+   {\n      "name": "total_original_amount",\n      "expr": "SUM(pvr01900.OverTimePremiumPaymentAmount + pvr01600.PrinNtnlPaydownAmount)"\n    }\n  ],\n '
+2026-02-15 17:13:50,131 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:50,131 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:50,131 | INFO | agents.orchestrator | USER QUESTION ::: Which Portfolio ID has the highest total Original Amount across all PVR tables?
+2026-02-15 17:13:51,037 | WARNING | tools.execution | Some plan tables are missing in Athena/Glue; pruning
+2026-02-15 17:13:51,037 | INFO | tools.execution | ATHENA SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:51,037 | INFO | tools.execution | POSTGRES SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:51,037 | INFO | tools.execution | Executing SQL
+2026-02-15 17:13:51,047 | INFO | db.athena | ATHENA QUERY :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 928, in run
+    df = execute_plan(session, plan)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\execution_tool.py", line 723, in execute_plan
+    return AthenaExecutor(session.settings).execute(sql)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\db\athena.py", line 180, in execute
+    qid = ath.start_query_execution(**start_args)["QueryExecutionId"]
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.errorfactory.InvalidRequestException: An error occurred (InvalidRequestException) when calling the StartQueryExecution operation: line 2:5: mismatched input 'FROM'. Expecting: '*', 'ALL', 'DISTINCT', <expression>
+
+
     # Credit analysis across multiple tables
     "What is the average Credit Score for borrowers grouped by Guarantor Type Code?",
+
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.errorfactory.InvalidRequestException: An error occurred (InvalidRequestException) when calling the StartQueryExecution operation: line 2:5: mismatched input 'FROM'. Expecting: '*', 'ALL', 'DISTINCT', <expression>
+2026-02-15 17:13:48,082 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.8705
+01. score=0.8544 kind=column col=pvr01900.OverTimePremiumPaymentAmount | COLUMN pvr01900.OverTimePremiumPaymentAmount (float): Over time premium payment amount. | aliases: premium payment, premium payments, premium amount, premium p
+ayment amount, amt, v
+02. score=0.8036 kind=column col=pvr01200.InvestorDelay | COLUMN pvr01200.InvestorDelay (string): Investor delay. | aliases: investor delay, InvestorDelay, investor_delay, investor-delay, id
+03. score=0.7870 kind=column col=pvr01600.PrinNtnlPaydownAmount | COLUMN pvr01600.PrinNtnlPaydownAmount (float): Prin ntnl paydown amount. | aliases: principal paydown, principal paydowns, notional paydown, paydown amount, principal
+ paydown amoun
+04. score=0.8653 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8649 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8636 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:13:48,148 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:13:50,015 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01900",\n    "pvr01200",\n    "pvr01600",\n    "pvr00500",\n    "pvr00400",\n    "pvr01400"\n  ],\n  "metrics": [\n
+   {\n      "name": "total_original_amount",\n      "expr": "SUM(pvr01900.OverTimePremiumPaymentAmount + pvr01600.PrinNtnlPaydownAmount)"\n    }\n  ],\n '
+2026-02-15 17:13:50,131 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:50,131 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:13:50,131 | INFO | agents.orchestrator | USER QUESTION ::: Which Portfolio ID has the highest total Original Amount across all PVR tables?
+2026-02-15 17:13:51,037 | WARNING | tools.execution | Some plan tables are missing in Athena/Glue; pruning
+2026-02-15 17:13:51,037 | INFO | tools.execution | ATHENA SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:51,037 | INFO | tools.execution | POSTGRES SQL :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+
+    ORDER BY "total_original_amount" DESC
+    LIMIT 1
+2026-02-15 17:13:51,037 | INFO | tools.execution | Executing SQL
+2026-02-15 17:13:51,047 | INFO | db.athena | ATHENA QUERY :::
+SELECT
+    FROM "pvr01500" AS pvr01500 LEFT JOIN "pvr01600" AS pvr01600 ON pvr01500."InstrumentID" = pvr01600."InstrumentID"
+
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\db\athena.py", line 180, in execute
+    qid = ath.start_query_execution(**start_args)["QueryExecutionId"]
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\venv\Lib\site-packages\botocore\client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.errorfactory.InvalidRequestException: An error occurred (InvalidRequestException) when calling the StartQueryExecution operation: line 2:5: mismatched input 'FROM'. Expecting: '*', 'ALL', 'DISTINCT', <expression>
+2026-02-15 17:15:32,015 | INFO | agents.orchestrator | User query received
+2026-02-15 17:15:34,786 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9179
+01. score=0.8926 kind=column col=pvr01500.PaymentStructureTypeCode | COLUMN pvr01500.PaymentStructureTypeCode (string): Code representing the payment structure type. | aliases: payment type, structure type, payment structure type, t
+ype code, pmt str
+02. score=0.8781 kind=column col=pvr01200.PaymentStructureTypeCode | COLUMN pvr01200.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+03. score=0.8774 kind=column col=pvr01600.PaymentStructureTypeCode | COLUMN pvr01600.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+04. score=0.8749 kind=column col=pvr01200.DayCountCode | COLUMN pvr01200.DayCountCode (int): Day count code. | aliases: code, day count, day count code, DayCountCode, day_count_code, day-count-code, dcc, day count code code
+05. score=0.8740 kind=column col=pvr00500.PaymentStructureTypeCode | COLUMN pvr00500.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+06. score=0.8737 kind=column col=pvr01400.PaymentStructureTypeCode | COLUMN pvr01400.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+07. score=0.8672 kind=column col=pvr00500.DayCountCode | COLUMN pvr00500.DayCountCode (int): Day count code. | aliases: code, day count, day count code, DayCountCode, day_count_code, day-count-code, dcc, day count code code
+08. score=0.8600 kind=column col=pvr00500.ResetRollConventionCode | COLUMN pvr00500.ResetRollConventionCode (string): Reset roll convention code. | aliases: code, reset roll convention, reset roll convention code, ResetRollConventio
+nCode, reset_rol
+2026-02-15 17:15:34,869 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:15:35,761 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01500"\n  ],\n  "metrics": [\n    {\n      "name": "Average Credit Score",\n      "expr": "AVG(CreditScore)"\n    }\
+n  ],\n  "dimensions": [\n    "GuarantorTypeCode"\n  ],\n  "filters": []\n}'
+2026-02-15 17:15:35,761 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=What is the average Credit Score for borrowers grouped by Guarantor Type Code? | error=Unknown identifier in metric expression
+: CreditScore
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 672, in validate_plan
+    raise SchemaValidationError(f"Unknown identifier in metric expression: {tok}")
+nl_analytics.exceptions.errors.SchemaValidationError: Unknown identifier in metric expression: CreditScore
+2026-02-15 17:15:38,402 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9179
+01. score=0.8926 kind=column col=pvr01500.PaymentStructureTypeCode | COLUMN pvr01500.PaymentStructureTypeCode (string): Code representing the payment structure type. | aliases: payment type, structure type, payment structure type, t
+ype code, pmt str
+02. score=0.8781 kind=column col=pvr01200.PaymentStructureTypeCode | COLUMN pvr01200.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+03. score=0.8774 kind=column col=pvr01600.PaymentStructureTypeCode | COLUMN pvr01600.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+04. score=0.8749 kind=column col=pvr01200.DayCountCode | COLUMN pvr01200.DayCountCode (int): Day count code. | aliases: code, day count, day count code, DayCountCode, day_count_code, day-count-code, dcc, day count code code
+05. score=0.8740 kind=column col=pvr00500.PaymentStructureTypeCode | COLUMN pvr00500.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+06. score=0.8737 kind=column col=pvr01400.PaymentStructureTypeCode | COLUMN pvr01400.PaymentStructureTypeCode (string): Payment structure type code. | aliases: code, type code, payment type, structure type, payment structure type, p
+ayment structure
+07. score=0.8672 kind=column col=pvr00500.DayCountCode | COLUMN pvr00500.DayCountCode (int): Day count code. | aliases: code, day count, day count code, DayCountCode, day_count_code, day-count-code, dcc, day count code code
+08. score=0.8600 kind=column col=pvr00500.ResetRollConventionCode | COLUMN pvr00500.ResetRollConventionCode (string): Reset roll convention code. | aliases: code, reset roll convention, reset roll convention code, ResetRollConventio
+nCode, reset_rol
+2026-02-15 17:15:38,480 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:15:40,073 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01500"\n  ],\n  "metrics": [\n    {\n      "name": "Average Credit Score",\n      "expr": "AVG(CreditScore)"\n    }\
+n  ],\n  "dimensions": [\n    "PaymentStructureTypeCode"\n  ],\n  "filters": []\n}'
+2026-02-15 17:15:40,073 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=What is the average Credit Score for borrowers grouped by Guarantor Type Code? | error=Unknown identifier in metric expression
+: CreditScore
+Traceback (most recent call last):
+08. score=0.8600 kind=column col=pvr00500.ResetRollConventionCode | COLUMN pvr00500.ResetRollConventionCode (string): Reset roll convention code. | aliases: code, reset roll convention, reset roll convention code, ResetRollConventio
+nCode, reset_rol
+2026-02-15 17:15:42,902 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:15:43,881 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01500"\n  ],\n  "metrics": [\n    {\n      "name": "Average Credit Score",\n      "expr": "AVG(CreditScore)"\n    }\
+n  ],\n  "dimensions": [\n    "GuarantorTypeCode"\n  ],\n  "filters": []\n}'
+2026-02-15 17:15:43,889 | WARNING | agents.orchestrator | Planning/validation failed; retrying | question=What is the average Credit Score for borrowers grouped by Guarantor Type Code? | error=Unknown identifier in metric expression
+: CreditScore
+Traceback (most recent call last):
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\agents\orchestrator.py", line 852, in run
+    plan = validate_plan(self.registry, raw_plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\MRP\workspace\nl_analytics_agentic_prototype_s3_vector\src\nl_analytics\tools\planning_tool.py", line 672, in validate_plan
+    raise SchemaValidationError(f"Unknown identifier in metric expression: {tok}")
+nl_analytics.exceptions.errors.SchemaValidationError: Unknown identifier in metric expression: CreditScore
+
 
     # Time-based analysis
     "Show me the top 10 instruments by Current UPB Amount with their Settlement Date and Trade Date",
@@ -52,11 +609,165 @@ Here is the list of questions from user perspective that you can use in training
     # Complex aggregation with filtering
     "What is the weighted average Original LTV Ratio for loans with WALA greater than 100?",
 
+    2026-02-15 17:18:32,266 | INFO | agents.orchestrator | User query received
+2026-02-15 17:18:35,497 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.7071
+01. score=0.5739 kind=column col=pvr00400.WALA | COLUMN pvr00400.WALA (string): Wala. | aliases: WALA, wala
+02. score=0.5677 kind=column col=pvr01100.Ltv | COLUMN pvr01100.Ltv (float): Ltv. | aliases: ltv, l, ltv field 3, ltv field 4, ltv field 5
+03. score=0.6031 kind=join join=pvr00600->pvr01100 | JOIN RULE: pvr00600 -> pvr01100 ON ['InstrumentID'] = ['InstrumentID'] TYPE left
+04. score=0.5988 kind=join join=pvr01500->pvr01200 | JOIN RULE: pvr01500 -> pvr01200 ON ['InstrumentID'] = ['InstrumentID'] TYPE left
+05. score=0.6158 kind=column col=pvr00600.WeightedAvgLife | COLUMN pvr00600.WeightedAvgLife (float): Weighted avg life. | aliases: weighted avg life, WeightedAvgLife, weighted_avg_life, weighted-avg-life, wal
+06. score=0.6250 kind=table table=pvr01500 | TABLE pvr01500: PVR01500 dataset. TABLE_ALIASES: PVR01500, payment structure, payment schedule, variable rate history, rate reset history, historical coupon, coupon history, PVR 01
+07. score=0.5898 kind=column col=pvr00400.AverageOriginalLoanSize | COLUMN pvr00400.AverageOriginalLoanSize (string): Average original loan size. | aliases: AverageOriginalLoanSize, averageoriginalloansize, Average Original Loan Siz
+e, average origi
+08. score=0.5870 kind=column col=pvr00500.RangeNoteObsCalendarCode | COLUMN pvr00500.RangeNoteObsCalendarCode (string): Range note obs calendar code. | aliases: code, range note obs calendar, range note obs calendar code, RangeNoteO
+bsCalendarCode, r
+2026-02-15 17:18:35,780 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:18:37,113 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr00600",\n    "pvr01100"\n  ],\n  "metrics": [\n    {\n      "name": "Weighted Avg LTV",\n      "expr": "AVG(pvr01100
+.Ltv)"\n    }\n  ],\n  "dimensions": [\n    "pvr00600.WeightedAvgLife"\n  ],\n  "filters": [\n    "pvr00600.WeightedAvgLife > 100"\n  ]\n}'
+2026-02-15 17:18:37,565 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:18:37,565 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:18:37,565 | INFO | agents.orchestrator | USER QUESTION ::: What is the weighted average Original LTV Ratio for loans with WALA greater than 100?
+2026-02-15 17:18:37,931 | INFO | tools.execution | ATHENA SQL :::
+SELECT AVG(TRY_CAST(pvr01100."Ltv" AS DOUBLE)) AS "Weighted Avg LTV"
+    FROM "pvr00600" AS pvr00600 LEFT JOIN "pvr01100" AS pvr01100 ON pvr00600."InstrumentID" = pvr01100."InstrumentID"
+    WHERE TRY_CAST(pvr00600."WeightedAvgLife" AS DOUBLE) > 100
+
+
+    LIMIT 5000
+2026-02-15 17:18:37,937 | INFO | tools.execution | POSTGRES SQL :::
+SELECT AVG(CASE WHEN pvr01100."Ltv" IS NULL THEN NULL WHEN (pvr01100."Ltv")::text ~ '^[+-]?[0-9]+(\.[0-9]+)?$' THEN (pvr01100."Ltv")::double precision ELSE NULL END) AS "Weighted Avg LTV"
+    FROM "pvr00600" AS pvr00600 LEFT JOIN "pvr01100" AS pvr01100 ON pvr00600."InstrumentID" = pvr01100."InstrumentID"
+    WHERE CASE WHEN pvr00600."WeightedAvgLife" IS NULL THEN NULL WHEN (pvr00600."WeightedAvgLife")::text ~ '^[+-]?[0-9]+(\.[0-9]+)?$' THEN (pvr00600."WeightedAvgLife")::double precision ELSE NULL END > 100
+
+
+    LIMIT 5000
+2026-02-15 17:18:37,938 | INFO | tools.execution | Executing SQL
+2026-02-15 17:18:37,944 | INFO | db.athena | ATHENA QUERY :::
+SELECT AVG(TRY_CAST(pvr01100."Ltv" AS DOUBLE)) AS "Weighted Avg LTV"
+    FROM "pvr00600" AS pvr00600 LEFT JOIN "pvr01100" AS pvr01100 ON pvr00600."InstrumentID" = pvr01100."InstrumentID"
+    WHERE TRY_CAST(pvr00600."WeightedAvgLife" AS DOUBLE) > 100
+
+
+    LIMIT 5000
+2026-02-15 17:18:39,913 | INFO | agents.orchestrator | Final confidence computed
+2026-02-15 17:18:39,913 | INFO | agents.orchestrator | Execution produced empty results; retrying
+2026-02-15 17:18:42,928 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.7071
+01. score=0.5739 kind=column col=pvr00400.WALA | COLUMN pvr00400.WALA (string): Wala. | aliases: WALA, wala
+02. score=0.5677 kind=column col=pvr01100.Ltv | COLUMN pvr01100.Ltv (float): Ltv. | aliases: ltv, l, ltv field 3, ltv field 4, ltv field 5
+03. score=0.6031 kind=join join=pvr00600->pvr01100 | JOIN RULE: pvr00600 -> pvr01100 ON ['InstrumentID'] = ['InstrumentID'] TYPE left
+04. score=0.5988 kind=join join=pvr01500->pvr01200 | JOIN RULE: pvr01500 -> pvr01200 ON ['InstrumentID'] = ['InstrumentID'] TYPE left
+05. score=0.6158 kind=column col=pvr00600.WeightedAvgLife | COLUMN pvr00600.WeightedAvgLife (float): Weighted avg life. | aliases: weighted avg life, WeightedAvgLife, weighted_avg_life, weighted-avg-life, wal
+06. score=0.6250 kind=table table=pvr01500 | TABLE pvr01500: PVR01500 dataset. TABLE_ALIASES: PVR01500, payment structure, payment schedule, variable rate history, rate reset history, historical coupon, coupon history, PVR 01
+07. score=0.5898 kind=column col=pvr00400.AverageOriginalLoanSize | COLUMN pvr00400.AverageOriginalLoanSize (string): Average original loan size. | aliases: AverageOriginalLoanSize, averageoriginalloansize, Average Original Loan Siz
+e, average origi
+08. score=0.5870 kind=column col=pvr00500.RangeNoteObsCalendarCode | COLUMN pvr00500.RangeNoteObsCalendarCode (string): Range note obs calendar code. | aliases: code, range note obs calendar, range note obs calendar code, RangeNoteO
+bsCalendarCode, r
+2026-02-15 17:18:43,212 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:18:47,198 | INFO | bedrock.client | Claude text head: 'Here is a JSON object that represents the query plan for the given question:\n\n{\n  "mode": "report",\n  "tables": [\n    "pvr00600",\n    "pvr01100"\n  ],\n  "me
+trics": [\n    {\n      "name": "Weighted Avg LTV",\n      "expr": "AVG(pvr01100.Ltv)"\n    }\n  ],\n  "dimensions": [\n    "pvr00600.WeightedAvgLife"\n '
+2026-02-15 17:18:47,636 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:18:47,636 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:18:47,636 | INFO | agents.orchestrator | USER QUESTION ::: What is the weighted average Original LTV Ratio for loans with WALA greater than 100?
+2026-02-15 17:18:48,104 | INFO | tools.execution | ATHENA SQL :::
+SELECT AVG(TRY_CAST(pvr01100."Ltv" AS DOUBLE)) AS "Weighted Avg LTV"
+    FROM "pvr00600" AS pvr00600 LEFT JOIN "pvr01100" AS pvr01100 ON pvr00600."InstrumentID" = pvr01100."InstrumentID"
+    WHERE TRY_CAST(pvr00600."WeightedAvgLife" AS DOUBLE) > 100
+
+
+    LIMIT 5000
+2026-02-15 17:18:48,120 | INFO | tools.execution | POSTGRES SQL :::
+SELECT AVG(CASE WHEN pvr01100."Ltv" IS NULL THEN NULL WHEN (pvr01100."Ltv")::text ~ '^[+-]?[0-9]+(\.[0-9]+)?$' THEN (pvr01100."Ltv")::double precision ELSE NULL END) AS "Weighted Avg LTV"
+    FROM "pvr00600" AS pvr00600 LEFT JOIN "pvr01100" AS pvr01100 ON pvr00600."InstrumentID" = pvr01100."InstrumentID"
+    WHERE CASE WHEN pvr00600."WeightedAvgLife" IS NULL THEN NULL WHEN (pvr00600."WeightedAvgLife")::text ~ '^[+-]?[0-9]+(\.[0-9]+)?$' THEN (pvr00600."WeightedAvgLife")::double precision ELSE NULL END > 100
+
+
+    LIMIT 5000
+2026-02-15 17:18:48,120 | INFO | tools.execution | Executing SQL
+2026-02-15 17:18:48,135 | INFO | db.athena | ATHENA QUERY :::
+SELECT AVG(TRY_CAST(pvr01100."Ltv" AS DOUBLE)) AS "Weighted Avg LTV"
+    FROM "pvr00600" AS pvr00600 LEFT JOIN "pvr01100" AS pvr01100 ON pvr00600."InstrumentID" = pvr01100."InstrumentID"
+    WHERE TRY_CAST(pvr00600."WeightedAvgLife" AS DOUBLE) > 100
+
+
+    LIMIT 5000
+2026-02-15 17:18:50,651 | INFO | agents.orchestrator | Final confidence computed
+2026-02-15 17:18:50,651 | INFO | agents.orchestrator | Execution produced empty results; retrying
+2026-02-15 17:18:53,699 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.7071
+01. score=0.5739 kind=column col=pvr00400.WALA | COLUMN pvr00400.WALA (string): Wala. | aliases: WALA, wala
+02. score=0.5677 kind=column col=pvr01100.Ltv | COLUMN pvr01100.Ltv (float): Ltv. | aliases: ltv, l, ltv field 3, ltv field 4, ltv field 5
+03. score=0.6031 kind=join join=pvr00600->pvr01100 | JOIN RULE: pvr00600 -> pvr01100 ON ['InstrumentID'] = ['InstrumentID'] TYPE left
+04. score=0.5988 kind=join join=pvr01500->pvr01200 | JOIN RULE: pvr01500 -> pvr01200 ON ['InstrumentID'] = ['InstrumentID'] TYPE left
+05. score=0.6158 kind=column col=pvr00600.WeightedAvgLife | COLUMN pvr00600.WeightedAvgLife (float): Weighted avg life. | aliases: weighted avg life, WeightedAvgLife, weighted_avg_life, weighted-avg-life, wal
+06. score=0.6250 kind=table table=pvr01500 | TABLE pvr01500: PVR01500 dataset. TABLE_ALIASES: PVR01500, payment structure, payment schedule, variable rate history, rate reset history, historical coupon, coupon history, PVR 01
+07. score=0.5898 kind=column col=pvr00400.AverageOriginalLoanSize | COLUMN pvr00400.AverageOriginalLoanSize (string): Average original loan size. | aliases: AverageOriginalLoanSize, averageoriginalloansize, Average Original Loan Siz
+e, average origi
+08. score=0.5870 kind=column col=pvr00500.RangeNoteObsCalendarCode | COLUMN pvr00500.RangeNoteObsCalendarCode (string): Range note obs calendar code. | aliases: code, range note obs calendar, range note obs calendar code, RangeNoteO
+bsCalendarCode, r
+    LIMIT 5000
+2026-02-15 17:18:57,892 | INFO | tools.execution | Executing SQL
+2026-02-15 17:18:57,892 | INFO | db.athena | ATHENA QUERY :::
+SELECT AVG(TRY_CAST(pvr01100."Ltv" AS DOUBLE)) AS "Weighted Avg LTV"
+    FROM "pvr00600" AS pvr00600 LEFT JOIN "pvr01100" AS pvr01100 ON pvr00600."InstrumentID" = pvr01100."InstrumentID"
+    WHERE TRY_CAST(pvr00600."WeightedAvgLife" AS DOUBLE) > 100
+
+
+    LIMIT 5000
+2026-02-15 17:19:01,885 | INFO | agents.orchestrator | Final confidence computed
+2026-02-15 17:19:01,885 | INFO | agents.orchestrator | Execution produced empty results; retrying
+
+
     # Risk metrics from KRD tables
     "What is the distribution of Analytic Values across different Scenario Types in KRD tables?",
 
     # Multi-table join analysis
     "How many instruments appear in both PVR and PNL tables based on InstrumentID?"
+
+    2026-02-15 17:22:36,092 | INFO | agents.orchestrator | User query received
+2026-02-15 17:22:38,728 | INFO | tools.retrieval | RETRIEVED TOPK PLANNING CHUNKS | top_k=8 | oversample=40 | confidence=0.9051
+01. score=0.8660 kind=column col=pvr01600.InstrumentID | COLUMN pvr01600.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+02. score=0.8639 kind=column col=pvr00500.InstrumentID | COLUMN pvr00500.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+03. score=0.8635 kind=column col=pvr01400.InstrumentID | COLUMN pvr01400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+04. score=0.8624 kind=column col=pvr01200.InstrumentID | COLUMN pvr01200.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+05. score=0.8614 kind=column col=pvr01300.InstrumentID | COLUMN pvr01300.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+06. score=0.8606 kind=column col=pvr01100.InstrumentID | COLUMN pvr01100.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+07. score=0.8606 kind=column col=pvr01900.InstrumentID | COLUMN pvr01900.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+08. score=0.8603 kind=column col=pvr00400.InstrumentID | COLUMN pvr00400.InstrumentID (string): Instrument id. | aliases: pool, cusip, security, instrument, instrument id, InstrumentID, instrument_id, instrument-id, ii, instrument i
+d ide
+2026-02-15 17:22:39,387 | INFO | agents.orchestrator | Confidence computed
+2026-02-15 17:22:40,783 | INFO | bedrock.client | Claude text head: '{\n  "mode": "report",\n  "tables": [\n    "pvr01600",\n    "pvr00500",\n    "pvr01400",\n    "pvr01200",\n    "pvr01300",\n    "pvr01100",\n    "pvr01900",\n    "
+pvr00400"\n  ],\n  "metrics": [\n    {\n      "name": "Instrument Count",\n      "expr": "COUNT(DISTINCT InstrumentID)"\n    }\n  ],\n  "dimensions": [],\n '
+2026-02-15 17:22:41,385 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:22:41,387 | INFO | agents.orchestrator | Confidence updated after plan
+2026-02-15 17:22:41,388 | INFO | agents.orchestrator | USER QUESTION ::: How many instruments appear in both PVR and PNL tables based on InstrumentID?
+2026-02-15 17:22:41,585 | INFO | tools.execution | ATHENA SQL :::
+SELECT COUNT(DISTINCT pvr01600."InstrumentID") AS "Instrument Count"
+    FROM "pvr01600" AS pvr01600
+
+
+
+    FROM "pvr01600" AS pvr01600
+
+
+
+    LIMIT 5000
+2026-02-15 17:22:41,589 | INFO | tools.execution | Executing SQL
+2026-02-15 17:22:41,597 | INFO | db.athena | ATHENA QUERY :::
+SELECT COUNT(DISTINCT pvr01600."InstrumentID") AS "Instrument Count"
+    FROM "pvr01600" AS pvr01600
+
+
+
+    LIMIT 5000
+2026-02-15 17:22:43,323 | INFO | agents.orchestrator | Final confidence computed
+2026-02-15 17:22:43,777 | INFO | export.exporter | Exported CSV
+2026-02-15 17:22:43,809 | INFO | export.exporter | Exported PDF
 
 
 
