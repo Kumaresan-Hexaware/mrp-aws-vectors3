@@ -194,6 +194,9 @@ class QueryPlan:
     sort: List[Dict[str, Any]] | None = None
     chart: Dict[str, Any] | None = None
     charts: List[Dict[str, Any]] | None = None
+    # Optional execution hints injected by the orchestrator.
+    # This is NOT produced by the LLM planner; it is a post-validation repair channel.
+    hints: Dict[str, Any] | None = None
 
 
 def _extract_metric_column(expr: str) -> str | None:

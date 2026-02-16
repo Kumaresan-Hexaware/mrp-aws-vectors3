@@ -237,6 +237,57 @@ def _compile_sql(
     This is used for execution (db_type dialect) and also for rendering alternate
     dialect SQL (ex: Postgres) for testing/logging.
     """
+
+    # Special case: "average X across all unique instruments".
+    # Meaning: compute per-InstrumentID value first, then average across instruments
+    # so each instrument contributes once (avoids row-weighting bias).
+    try:
+        hints = getattr(plan, "hints", None) or {}
+    except Exception:
+        hints = {}
+    if (
+        hints.get("unique_entity_avg") == "InstrumentID"
+        and tables
+        and (not (plan.dimensions or []))
+        and (plan.metrics or [])
+        and len(plan.metrics) == 1
+    ):
+        metric = (plan.metrics or [])[0]
+        metric_name = str(metric.get("name", "metric"))
+        # Build the inner per-instrument aggregate using the same metric compiler
+        # so we get:
+        #  - proper column qualification (alias."col")
+        #  - TRY_CAST(... AS DOUBLE) for Athena for SUM/AVG over CSV varchar columns
+        # Note: we override the output name to _inst_value.
+        inst_metric_sql = _metric_sql(
+            [{"name": "_inst_value", "expr": str(metric.get("expr", "")).strip() or "AVG(1)"}],
+            col_ref,
+            dialect,
+        )[0]
+
+        # Resolve InstrumentID reference.
+        inst = "InstrumentID"
+        if inst in col_ref:
+            inst_alias, inst_col = col_ref[inst].split(".", 1)
+            inst_sql = f"{inst_alias}.{_sql_ident(inst_col, dialect)}"
+        else:
+            # Fallback: assume unqualified InstrumentID is valid.
+            inst_sql = _sql_ident(inst, dialect)
+
+        join_sql, _ = build_join_sql(registry, tables, dialect)
+        where_sql = _filters_sql(plan.filters, col_ref, dialect, registry=registry)
+
+        # Inner query: per-instrument aggregation
+        # Outer query: average across instruments (one row)
+        return f"""WITH _per_inst AS (
+    SELECT {inst_sql} AS {_sql_ident(inst, dialect)}, {inst_metric_sql}
+    {join_sql}
+    {where_sql}
+    GROUP BY {inst_sql}
+)
+SELECT AVG({_sql_ident('_inst_value', dialect)}) AS {_sql_ident(metric_name, dialect)}
+FROM _per_inst""".strip()
+
     # Special case: overall distinct count across multiple tables with no dimensions.
     # Example: COUNT(DISTINCT InstrumentID) across all tables should NOT pick a single base table.
     if tables and len(tables) > 1 and (not (plan.dimensions or [])) and (plan.metrics or []) and len(plan.metrics) == 1:
@@ -700,7 +751,7 @@ def execute_plan(session: DataSession, plan: QueryPlan) -> pd.DataFrame:
     try:
         pg_dialect = dialect_for("postgres")
         pg_sql = _compile_sql(registry, plan, tables, col_ref, pg_dialect)
-        log.info(f"POSTGRES SQL :::\n{pg_sql}")
+        #log.info(f"POSTGRES SQL :::\n{pg_sql}")
     except Exception as e:
         log.warning(f"Failed to render POSTGRES SQL (render-only): {e}")
     # Keep the old "Executing SQL" message for continuity (extra fields are not printed by default logger).

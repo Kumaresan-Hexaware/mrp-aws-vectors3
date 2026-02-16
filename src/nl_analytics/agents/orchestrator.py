@@ -187,7 +187,48 @@ class AgentOrchestrator:
             sort=list(plan.sort or []) if plan.sort is not None else None,
             chart=plan.chart,
             charts=plan.charts,
+            hints=getattr(plan, "hints", None),
         )
+
+    def _mark_unique_instrument_avg(self, question: str, plan: QueryPlan) -> QueryPlan:
+        """Mark plans that should compute a metric *across unique instruments*.
+
+        Many of the MRP/PVR/KRD tables have multiple rows per InstrumentID. A naive AVG(metric)
+        averages *rows*, not *instruments*, which is wrong for questions like:
+            "average Duration across all unique instruments"
+
+        We fix this in a surgical way by adding an execution hint. The SQL compiler will then
+        produce a 2-stage aggregate:
+            AVG( per_instrument_metric )
+        where per_instrument_metric is computed by grouping on InstrumentID.
+
+        This does NOT impact normal GROUP BY flows because it only triggers when the question
+        explicitly mentions "unique instruments" and the plan is an overall aggregate (no breakdown).
+        """
+        q = (question or "").lower()
+        if "unique instrument" not in q and "unique instruments" not in q:
+            return plan
+        if "across all" not in q and "across" not in q:
+            return plan
+
+        # If the user clearly asks for a breakdown, do not enable this.
+        breakdown_markers = [" by ", " per ", " for each ", " grouped ", " breakdown", " distribution"]
+        if any(m in q for m in breakdown_markers):
+            return plan
+
+        # Only for single-metric AVG(...) plans with no dimensions.
+        if (plan.dimensions or []):
+            return plan
+        if not plan.metrics or len(plan.metrics) != 1:
+            return plan
+        expr0 = str((plan.metrics or [])[0].get("expr", "")).strip().lower()
+        if not re.match(r"(?is)^avg\s*\(.*\)\s*$", expr0):
+            # Some planners emit a bare column; leave it to execution layer sanitization.
+            return plan
+
+        hints = dict(getattr(plan, "hints", None) or {})
+        hints["unique_entity_avg"] = "InstrumentID"
+        return replace(plan, hints=hints)
 
     def _repair_distribution_instrument_type(self, question: str, plan: 'QueryPlan') -> 'QueryPlan':
         """Fix common LLM/heuristic mistakes for 'distribution of unique instruments by instrument type'.
@@ -854,6 +895,7 @@ class AgentOrchestrator:
                 plan = self._repair_distribution_instrument_type(question, plan)
                 plan = self._repair_overall_aggregate_shape(question, plan)
                 plan = self._expand_tables_for_across_all_tables(question, plan)
+                plan = self._mark_unique_instrument_avg(question, plan)
 
                 # Persist raw/validated plan (detailed mode only)
                 if not compact_mode:
